@@ -5,7 +5,7 @@ sys.path.append('src')
 import numpy as np
 import pandas as pd
 
-from data.common import label_to_sen, save_data
+from audio.data.common import label_to_sen, save_data
 
 
 def singlecorpus_grouping(targets: dict[list], predicts: dict[list], samples_info: dict[tuple], current_phase: str = None, datasets_stats: dict[dict] = None) -> dict[tuple]:

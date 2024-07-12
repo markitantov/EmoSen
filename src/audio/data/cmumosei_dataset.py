@@ -17,9 +17,9 @@ from transformers import AutoProcessor
 
 from torch.utils.data import Dataset
 
-from singlecorpus_config import data_config as conf
+from audio.configs.singlecorpus_config import data_config as conf
 
-from data.common import load_data, save_data, slice_audio, find_intersections, emo_to_label, ohe_sentiment, read_audio
+from audio.data.common import load_data, save_data, slice_audio, find_intersections, emo_to_label, ohe_sentiment, read_audio
 
 
 class CMUMOSEIDataset(Dataset):

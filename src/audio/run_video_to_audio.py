@@ -11,7 +11,7 @@ import sox
 from tqdm import tqdm
 
 
-from config import data_config
+from audio.configs.singlecorpus_config import data_config
 
 
 def convert_without_filtering(inp_path: str, 

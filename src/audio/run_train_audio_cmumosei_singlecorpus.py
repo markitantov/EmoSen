@@ -13,23 +13,23 @@ import pandas as pd
 import torch
 from torchvision import transforms
 
-from singlecorpus_config import data_config as dconf
-from singlecorpus_config import training_config as tconf
+from audio.configs.singlecorpus_config import data_config as dconf
+from audio.configs.singlecorpus_config import training_config as tconf
 
-from augmentation.wave_augmentation import RandomChoice, PolarityInversion, WhiteNoise, Gain
+from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion, WhiteNoise, Gain
 
-from data.cmumosei_dataset import CMUMOSEIDataset
-from data.grouping import singlecorpus_grouping
+from audio.data.cmumosei_dataset import CMUMOSEIDataset
+from audio.data.grouping import singlecorpus_grouping
 
-from models.audio_models import AudioModelV1, AudioModelV2
+from audio.models.audio_models import AudioModelV1, AudioModelV2
 
-from loss.loss import MLMTLoss, MTLoss
+from audio.loss.loss import MLMTLoss, MTLoss
 
-from utils.accuracy import *
+from audio.utils.accuracy import *
 
-from net_trainer.net_trainer import NetTrainer, LabelType
+from audio.net_trainer.net_trainer import NetTrainer, LabelType
 
-from utils.common import get_source_code, define_seed
+from audio.utils.common import get_source_code, define_seed
   
 
 def main(d_config: dict, t_config: dict) -> None:

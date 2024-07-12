@@ -8,7 +8,7 @@ import pickle
 import torch
 from tqdm import tqdm
 
-from config import data_config
+from audio.configs.singlecorpus_config import data_config
 
 
 model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
