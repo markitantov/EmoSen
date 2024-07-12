@@ -8,10 +8,10 @@ from tqdm import tqdm
 
 import torch
 import torch.nn.functional as F
-from tensorboardX import SummaryWriter # todo
+from torch.utils.tensorboard import SummaryWriter
 
-from visualization.visualize import conf_matrix, plot_conf_matrix
-from utils.common import create_logger
+from audio.visualization.visualize import conf_matrix, plot_conf_matrix
+from audio.utils.common import create_logger
 
 
 class LabelType(Enum):
