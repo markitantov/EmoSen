@@ -21,9 +21,9 @@ from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion
 from audio.data.cmumosei_dataset import CMUMOSEIDataset
 from audio.data.grouping import singlecorpus_grouping
 
-from audio.models.audio_models import AudioModelV1, AudioModelV2
+from audio.models.audio_models import *
 
-from audio.loss.loss import MLMTLoss, MTLoss
+from audio.loss.loss import MLMTLoss
 
 from audio.utils.accuracy import *
 
@@ -212,7 +212,7 @@ def run_expression_training() -> None:
     """Wrapper for training 
     """
     d_config = dconf['CMUMOSEI']
-    model_cls = [AudioModelV1, AudioModelV2]
+    model_cls = [AudioModelV16, AudioModelV26]
 
     for augmentation in [False, True]:
         for m_cls in model_cls:
