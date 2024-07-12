@@ -413,9 +413,6 @@ class EmoSenCombinedMeasure:
         Returns:
             float: mean of two MacroF1
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
-
         emo_performance = self.emo_macro_f1.calc(targets['emo'], predicts['emo'])
         sen_performance = self.sen_macro_f1.calc(targets['sen'], predicts['sen'])
         return (emo_performance + sen_performance) / 2    

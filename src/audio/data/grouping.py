@@ -119,10 +119,11 @@ def singlecorpus_grouping(targets: dict[list], predicts: dict[list], samples_inf
             emo_type = 'emo_{0}'.format(len(emo_idx))
             missing_files = set(datasets_stats[db][current_phase]['fns'].keys()) - set(filenames)
             for missing_file in missing_files:
-                emo_targets.append(datasets_stats[db][current_phase]['fns'][missing_file][emo_type])
                 if 'CMUMOSEI' in db:
+                    emo_targets.append(datasets_stats[db][current_phase]['fns'][missing_file][emo_type])
                     emo_predicts.append((np.arange(len(emo_idx)) == datasets_stats[db]['train']['majority_class'][emo_type]).astype(float))
                 else:
+                    emo_targets.append(np.argmax(datasets_stats[db][current_phase]['fns'][missing_file][emo_type]))
                     emo_predicts.append(datasets_stats[db]['train']['majority_class'][emo_type])
 
                 sen_targets.append(np.argmax(datasets_stats[db][current_phase]['fns'][missing_file]['sen_3']))
