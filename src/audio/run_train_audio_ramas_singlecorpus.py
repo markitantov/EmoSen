@@ -13,6 +13,8 @@ import pandas as pd
 import torch
 from torchvision import transforms
 
+from transformers import AutoConfig
+
 from audio.configs.singlecorpus_config import data_config as dconf
 from audio.configs.singlecorpus_config import training_config as tconf
 
@@ -21,7 +23,7 @@ from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion
 from audio.data.ramas_dataset import RAMASDataset
 from audio.data.grouping import singlecorpus_grouping
 
-from audio.models.audio_models import *
+from audio.models.audio_models_v2 import *
 
 from audio.loss.loss import MTLoss
 
@@ -177,7 +179,10 @@ def main(d_config: dict, t_config: dict) -> None:
                              c_names_to_display=c_names_to_display)
     
     # Defining model
-    model = model_cls.from_pretrained(model_name)
+    model_cfg = AutoConfig.from_pretrained(model_name)
+    model_cfg.out_emo = len(c_names['emo'])
+    model_cfg.out_sen = len(c_names['sen'])
+    model = model_cls.from_pretrained(model_name, config=model_cfg)
     model.to(device)
     
     # Defining weighted loss
@@ -187,6 +192,7 @@ def main(d_config: dict, t_config: dict) -> None:
     
     # Defining optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 
     # Defining scheduler
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
@@ -211,7 +217,7 @@ def run_expression_training() -> None:
     """Wrapper for training 
     """
     d_config = dconf['RAMAS']
-    model_cls = [AudioModelV17, AudioModelV27]
+    model_cls = [AudioModelV3, AudioModelV4]
 
     for augmentation in [False, True]:
         for m_cls in model_cls:
