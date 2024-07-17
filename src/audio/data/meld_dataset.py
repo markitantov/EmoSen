@@ -20,12 +20,15 @@ from torch.utils.data import Dataset
 from audio.configs.singlecorpus_config import data_config as conf
 
 from audio.data.common import load_data, save_data, slice_audio, find_intersections, emo_to_label, ohe_sentiment, read_audio
+from audio.data.data_preprocessors import BaseDataPreprocessor
 
 
 class MELDDataset(Dataset):
-    def __init__(self, audio_root: str, metadata: pd.DataFrame, dump_filepath: str, vad_metadata: dict[list] = None, include_neutral: bool = True, 
-                 sr: int = 16000, win_max_length: int = 4, win_shift: int = 2, win_min_length: int = 0, transform: torchvision.transforms.transforms.Compose = None,
-                 processor_name: str = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim') -> None:
+    def __init__(self, audio_root: str, metadata: pd.DataFrame, dump_filepath: str, 
+                 vad_metadata: dict[list] = None, include_neutral: bool = True, 
+                 sr: int = 16000, win_max_length: int = 4, win_shift: int = 2, win_min_length: int = 0, 
+                 transform: torchvision.transforms.transforms.Compose = None,
+                 data_preprocessor: BaseDataPreprocessor = None) -> None:
         """MELD dataset
         Preprocesses labels and features during initialization
 
@@ -40,7 +43,7 @@ class MELDDataset(Dataset):
             win_shift (int, optional): Shift length of window. Defaults to 2.
             win_min_length (int, optional): Min length of window. Defaults to 0.
             transform (torchvision.transforms.transforms.Compose, optional): Augmentation methods. Defaults to None.
-            processor_name (str, optional): Name of model in transformers library for preprocessing data. Defaults to 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'.
+            data_preprocessor (BaseDataProcessor, optional): Data preprocessor. Defaults to None.
         """
         self.audio_root = audio_root
         self.metadata = metadata
@@ -53,7 +56,7 @@ class MELDDataset(Dataset):
         self.win_min_length = win_min_length
         
         self.transform = transform
-        self.processor = AutoProcessor.from_pretrained(processor_name) if processor_name else None
+        self.data_preprocessor = data_preprocessor
 
         self.info = load_data(dump_filepath)
 
@@ -157,9 +160,8 @@ class MELDDataset(Dataset):
         if self.transform:
             a_data = self.transform(a_data)
 
-        if self.processor:
-            a_data = self.processor(a_data, sampling_rate=self.sr)
-            a_data = a_data['input_values'][0].squeeze()
+        if self.data_preprocessor:
+            a_data = self.data_preprocessor.preprocess(a_data)
 
         # OHE
         emo_values = emo_to_label(data['emo'], self.include_neutral)
@@ -195,7 +197,7 @@ if __name__ == "__main__":
         with open(os.path.join(data_config['DATA_ROOT'], data_config['VAD_FILE'].replace('.pickle', '_{0}.pickle'.format(ds))), 'rb') as handle:
             vad_metadata = pickle.load(handle)
 
-        dump_filepath = os.path.join(data_config['DATA_ROOT'], 'MELD_{}_VAD420_SAMPLES.pickle'.format(ds.upper()))
+        dump_filepath = os.path.join(data_config['DATA_ROOT'], 'MELD_{}_{}.pickle'.format(ds.upper(), data_config['FEATURES_DUMP_FILE']))
 
         rd = MELDDataset(audio_root=os.path.join(data_config['DATA_ROOT'], data_config['VOCALS_ROOT'], ds),
                          metadata=labels, dump_filepath=dump_filepath,

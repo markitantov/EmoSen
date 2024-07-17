@@ -21,6 +21,7 @@ from audio.configs.singlecorpus_config import training_config as tconf
 from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion, WhiteNoise, Gain
 
 from audio.data.ramas_dataset import RAMASDataset
+from audio.data.data_preprocessors import Wav2VecDataPreprocessor
 from audio.data.grouping import singlecorpus_grouping
 
 from audio.models.audio_models_v2 import *
@@ -38,6 +39,7 @@ def main(d_config: dict, t_config: dict) -> None:
     """Trains with configuration in the following steps:
     - Defines datasets names
     - Defines data augmentations
+    - Defines data preprocessor
     - Defines datasets
     - Defines dataloaders
     - Defines measures
@@ -66,7 +68,7 @@ def main(d_config: dict, t_config: dict) -> None:
     source_code = 'Data configuration:\n{0}\nTraining configuration:\n{1}\n\nSource code:\n{2}'.format(
         pprint.pformat(d_config),
         pprint.pformat(t_config),
-        get_source_code([main, model_cls, RAMASDataset, NetTrainer]))
+        get_source_code([main, model_cls, RAMASDataset, Wav2VecDataPreprocessor, NetTrainer]))
     
     # Defining datasets 
     ds_names = {
@@ -111,6 +113,9 @@ def main(d_config: dict, t_config: dict) -> None:
         else:
             all_transforms[ds] = None
         
+    # Defining data preprocessor
+    data_preprocessor = Wav2VecDataPreprocessor(model_name)
+    
     # Defining datasets
     datasets = {}
     datasets_stats = {'RAMAS': {}}
@@ -123,7 +128,7 @@ def main(d_config: dict, t_config: dict) -> None:
                              vad_metadata=vad_metadata,
                              include_neutral=True,
                              sr=16000, win_max_length=4, win_shift=2, win_min_length=0,
-                             transform=t) for t in all_transforms[ds]
+                             transform=t, data_preprocessor=data_preprocessor) for t in all_transforms[ds]
                 ]
             )
 
@@ -135,7 +140,7 @@ def main(d_config: dict, t_config: dict) -> None:
                                         vad_metadata=vad_metadata, 
                                         include_neutral=True,
                                         sr=16000, win_max_length=4, win_shift=2, win_min_length=0,
-                                        transform=all_transforms[ds])
+                                        transform=all_transforms[ds], data_preprocessor=data_preprocessor)
 
             datasets_stats['RAMAS'][ds] = datasets[ds].info['stats']
 
@@ -145,7 +150,8 @@ def main(d_config: dict, t_config: dict) -> None:
         dataloaders[ds] = torch.utils.data.DataLoader(
             datasets[ds],
             batch_size=batch_size,
-            shuffle=('train' in ds))
+            shuffle=('train' in ds)
+        )
         
     # Defining measures, measure with 0 index is main measure
     measures = [
@@ -217,9 +223,9 @@ def run_expression_training() -> None:
     """Wrapper for training 
     """
     d_config = dconf['RAMAS']
-    model_cls = [AudioModelV3, AudioModelV4]
+    model_cls = [AudioModelV3, AudioModelV4, AudioModelV5]
 
-    for augmentation in [False, True]:
+    for augmentation in [False]:
         for m_cls in model_cls:
             t_config = deepcopy(tconf)
             t_config['LOGS_ROOT'] = '/media/maxim/WesternDigital/RAMAS2024/singlecorpus_ramas/'
