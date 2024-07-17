@@ -226,7 +226,7 @@ def run_expression_training() -> None:
     """Wrapper for training 
     """
     d_config = dconf['MELD']
-    model_cls = [AudioModelV4, AudioModelV4]
+    model_cls = [AudioModelV3, AudioModelV4, AudioModelV5]
 
     for augmentation in [False]:
         for m_cls in model_cls:

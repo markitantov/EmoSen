@@ -1,3 +1,7 @@
+import sys
+
+sys.path.append('src')
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,6 +23,8 @@ from xlstm import (
     sLSTMLayerConfig,
     FeedForwardConfig,
 )
+
+from mamba_ssm.modules.mamba2 import Mamba2
 
 from audio.models.common import TransformerLayer, ClassificationHead
 
@@ -49,7 +55,7 @@ class AudioModelV3(Wav2Vec2PreTrainedModel):
             context_length=199,
             num_blocks=7,
             embedding_dim=256,
-            slstm_at=[1],
+            slstm_at=[1, 4],
         ))
         
         self.tanh = nn.Tanh()
@@ -98,9 +104,10 @@ class AudioModelV4(Wav2Vec2PreTrainedModel):
         self.wav2vec2 = Wav2Vec2Model(config)
 
         self.f_size = 1024
-        self.tl1 = TransformerLayer(input_dim=self.f_size, num_heads=8, dropout=0.1, positional_encoding=True)
-        self.tl2 = TransformerLayer(input_dim=self.f_size, num_heads=16, dropout=0.1, positional_encoding=True)
-
+        self.transformer_layers = nn.ModuleList([
+            TransformerLayer(input_dim=self.f_size, num_heads=8, dropout=0.1, positional_encoding=True) for i in range(5)
+        ])
+        
         self.tanh = nn.Tanh()
         self.cl_head = ClassificationHead(input_size=self.f_size, 
                                           out_emo=config.out_emo, 
@@ -131,9 +138,59 @@ class AudioModelV4(Wav2Vec2PreTrainedModel):
     def forward(self, x):
         x = self.get_features(x)
 
-        x = self.tl1(query=x, key=x, value=x)
-        x = self.tl2(query=x, key=x, value=x)
-        x = self.tanh(x)
+        for i, l in enumerate(self.transformer_layers):
+            x = l(query=x, key=x, value=x)
+            x = self.tanh(x)
+
+        x = torch.mean(x, dim=1)
+        
+        return self.cl_head(x)
+    
+    
+class AudioModelV5(Wav2Vec2PreTrainedModel):
+    def __init__(self, config) -> None:
+        super().__init__(config)
+        self.config = config
+        self.wav2vec2 = Wav2Vec2Model(config)
+
+        self.f_size = 1024
+        self.mamba_layers = nn.ModuleList([
+            Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=2) for i in range(5)
+        ])
+        
+        self.tanh = nn.Tanh()
+        self.cl_head = ClassificationHead(input_size=self.f_size, 
+                                          out_emo=config.out_emo, 
+                                          out_sen=config.out_sen)
+        
+        self.init_weights()
+        self.freeze_conv_only()
+    
+    def freeze_conv_only(self):
+        # freeze conv
+        for param in self.wav2vec2.feature_extractor.conv_layers.parameters():
+            param.requires_grad = False
+            
+    def unfreeze_last_n_blocks(self, num_blocks: int) -> None:
+        # freeze all wav2vec
+        for param in self.wav2vec2.parameters():
+            param.requires_grad = False
+        
+        # unfreeze last n transformer blocks
+        for i in range(0, num_blocks):
+            for param in self.wav2vec2.encoder.layers[-1 * (i + 1)].parameters():
+                param.requires_grad = True
+
+    def get_features(self, x):
+        x = self.wav2vec2(x)[0]
+        return x
+
+    def forward(self, x):
+        x = self.get_features(x)
+
+        for i, l in enumerate(self.mamba_layers):
+            x = l(x)
+            x = self.tanh(x)
 
         x = torch.mean(x, dim=1)
         
@@ -147,17 +204,18 @@ if __name__ == "__main__":
     inp_v = torch.zeros((4, sampling_rate * 4)).to(device)
     model_name = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'
 
-    model_cls = AudioModelV4
+    model_clses = [AudioModelV3, AudioModelV4, AudioModelV5]
 
-    config = AutoConfig.from_pretrained(model_name)
-    config.out_emo = 7
-    config.out_sen = 3
+    for m_cls in model_clses:
+        config = AutoConfig.from_pretrained(model_name)
+        config.out_emo = 7
+        config.out_sen = 3
 
-    model = model_cls.from_pretrained(model_name, config=config)
+        model = m_cls.from_pretrained(model_name, config=config)
     
-    model.to(device)
+        model.to(device)
 
-    res = model(inp_v)
-    print(res)
-    print(res['emo'].shape)
-    print(res['sen'].shape)
+        res = model(inp_v)
+        print(res)
+        print(res['emo'].shape)
+        print(res['sen'].shape)
