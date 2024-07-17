@@ -28,3 +28,16 @@ data_config: dict = {
         'LABELS_FILE': '',
     },  
 }
+
+training_config: dict = {
+    'LOGS_ROOT': '',
+    'MODEL_PARAMS': {
+        'model_cls': None,
+        'args': {
+            None
+        }
+    },
+    'AUGMENTATION': None,
+    'NUM_EPOCHS': None,
+    'BATCH_SIZE': None,
+}
