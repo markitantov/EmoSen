@@ -10,10 +10,7 @@ import numpy as np
 from tqdm import tqdm
 
 import torch
-import torchaudio
 import torchvision
-
-from transformers import AutoProcessor
 
 from torch.utils.data import Dataset
 
@@ -161,7 +158,7 @@ class MELDDataset(Dataset):
             a_data = self.transform(a_data)
 
         if self.data_preprocessor:
-            a_data = self.data_preprocessor.preprocess(a_data)
+            a_data = self.data_preprocessor(a_data)
 
         # OHE
         emo_values = emo_to_label(data['emo'], self.include_neutral)

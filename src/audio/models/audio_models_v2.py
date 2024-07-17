@@ -58,7 +58,7 @@ class AudioModelV3(Wav2Vec2PreTrainedModel):
             slstm_at=[1, 4],
         ))
         
-        self.tanh = nn.Tanh()
+        self.selu = nn.SELU()
         self.cl_head = ClassificationHead(input_size=self.f_size, 
                                           out_emo=config.out_emo, 
                                           out_sen=config.out_sen)
@@ -90,7 +90,7 @@ class AudioModelV3(Wav2Vec2PreTrainedModel):
         x = self.feature_downsample(x)
         
         x = self.xlstm(x)
-        x = self.tanh(x)
+        x = self.selu(x)
 
         x = torch.mean(x, dim=1)
         
@@ -108,7 +108,7 @@ class AudioModelV4(Wav2Vec2PreTrainedModel):
             TransformerLayer(input_dim=self.f_size, num_heads=8, dropout=0.1, positional_encoding=True) for i in range(5)
         ])
         
-        self.tanh = nn.Tanh()
+        self.selu = nn.SELU()
         self.cl_head = ClassificationHead(input_size=self.f_size, 
                                           out_emo=config.out_emo, 
                                           out_sen=config.out_sen)
@@ -140,7 +140,7 @@ class AudioModelV4(Wav2Vec2PreTrainedModel):
 
         for i, l in enumerate(self.transformer_layers):
             x = l(query=x, key=x, value=x)
-            x = self.tanh(x)
+            x = self.selu(x)
 
         x = torch.mean(x, dim=1)
         
@@ -158,7 +158,7 @@ class AudioModelV5(Wav2Vec2PreTrainedModel):
             Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=2) for i in range(5)
         ])
         
-        self.tanh = nn.Tanh()
+        self.selu = nn.SELU()
         self.cl_head = ClassificationHead(input_size=self.f_size, 
                                           out_emo=config.out_emo, 
                                           out_sen=config.out_sen)
@@ -190,7 +190,7 @@ class AudioModelV5(Wav2Vec2PreTrainedModel):
 
         for i, l in enumerate(self.mamba_layers):
             x = l(x)
-            x = self.tanh(x)
+            x = self.selu(x)
 
         x = torch.mean(x, dim=1)
         

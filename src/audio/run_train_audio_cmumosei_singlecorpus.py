@@ -21,7 +21,7 @@ from audio.configs.singlecorpus_config import training_config as tconf
 from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion, WhiteNoise, Gain
 
 from audio.data.cmumosei_dataset import CMUMOSEIDataset
-from audio.data.data_preprocessors import Wav2VecDataPreprocessor
+from audio.data.data_preprocessors import Wav2Vec2DataPreprocessor
 from audio.data.grouping import singlecorpus_grouping
 
 from audio.models.audio_models_v2 import *
@@ -68,7 +68,7 @@ def main(d_config: dict, t_config: dict) -> None:
     source_code = 'Data configuration:\n{0}\nTraining configuration:\n{1}\n\nSource code:\n{2}'.format(
         pprint.pformat(d_config),
         pprint.pformat(t_config),
-        get_source_code([main, model_cls, CMUMOSEIDataset, Wav2VecDataPreprocessor, NetTrainer]))
+        get_source_code([main, model_cls, CMUMOSEIDataset, Wav2Vec2DataPreprocessor, NetTrainer]))
     
     # Defining datasets 
     ds_names = {
@@ -115,7 +115,7 @@ def main(d_config: dict, t_config: dict) -> None:
             all_transforms[ds] = None
         
     # Defining data preprocessor
-    data_preprocessor = Wav2VecDataPreprocessor(model_name)
+    data_preprocessor = Wav2Vec2DataPreprocessor(model_name)
     
     # Defining datasets
     datasets = {}

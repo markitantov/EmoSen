@@ -215,7 +215,7 @@ class ClassificationHead(nn.Module):
         self.fc_emo1 = nn.Linear(input_size, 64)
         self.fc_sen1 = nn.Linear(input_size, 64)
         self.relu = nn.ReLU()
-        self.dp = nn.Dropout(p=.6)
+        self.dp = nn.Dropout(p=.1)
 
         self.fc_emo2 = nn.Linear(64, out_emo)
         self.fc_sen2 = nn.Linear(64, out_sen)
