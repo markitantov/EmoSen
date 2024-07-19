@@ -23,16 +23,19 @@ class BaseDataPreprocessor:
 
 class Wav2Vec2DataPreprocessor(BaseDataPreprocessor): 
     def __init__(self, preprocessor_name: str = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim', 
-                 sr: int = 16000, return_attention_mask: bool = False) -> None:
+                 sr: int = 16000, win_max_length: int = 4, return_attention_mask: bool = False) -> None:
         """Wav2Vec Data Preprocessor
 
         Args:
             preprocessor_name (str, optional): Preprocessor name in transformers library. 
                                                Defaults to 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'.
             sr (int, optional): Sample rate of audio. Defaults to 16000.
+            win_max_length (int, optional): Max length of window. Defaults to 4.
             return_attention_mask: (bool, optional): Return attention mask or not. Defaults to False
         """
         self.sr = sr
+        self.win_max_length = win_max_length
+        
         self.return_attention_mask = return_attention_mask
         self.processor = Wav2Vec2Processor.from_pretrained(preprocessor_name)
     
@@ -47,7 +50,8 @@ class Wav2Vec2DataPreprocessor(BaseDataPreprocessor):
         Returns:
             np.ndarray: Preprocessed data
         """
-        a_data = self.processor(x, sampling_rate=self.sr, return_tensors="pt")
+        a_data = self.processor(x, sampling_rate=self.sr, return_tensors="pt", 
+                                padding='max_length', max_length=self.sr * self.win_max_length)
         return a_data if self.return_attention_mask else a_data["input_values"][0]
     
     
