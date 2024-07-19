@@ -16,14 +16,16 @@ from torch.utils.data import Dataset
 
 from audio.configs.singlecorpus_config import data_config as conf
 
-from audio.data.common import load_data, save_data, slice_audio, find_intersections, emo_to_label, ohe_sentiment, read_audio
+from audio.data.common import load_data, save_data, slice_audio, find_intersections, emo_to_label, ohe_sentiment, read_audio, generate_dump_filename
 from audio.data.data_preprocessors import BaseDataPreprocessor
+from audio.features.feature_extractors import BaseFeatureExtractor
 
 
 class RAMASDataset(Dataset):
     def __init__(self, audio_root: str, metadata: pd.DataFrame, dump_filepath: str, 
                  vad_metadata: dict[list] = None, include_neutral: bool = True, 
                  sr: int = 16000, win_max_length: int = 4, win_shift: int = 2, win_min_length: int = 0, 
+                 feature_extractor: BaseFeatureExtractor = None,
                  transform: torchvision.transforms.transforms.Compose = None,
                  data_preprocessor: BaseDataPreprocessor = None) -> None:
         """RAMAS dataset
@@ -39,6 +41,7 @@ class RAMASDataset(Dataset):
             win_max_length (int, optional): Max length of window. Defaults to 4.
             win_shift (int, optional): Shift length of window. Defaults to 2.
             win_min_length (int, optional): Min length of window. Defaults to 0.
+            feature_extractor (BaseFeatureExtractor, optional): Feature extractor. Defaults to None.
             transform (torchvision.transforms.transforms.Compose, optional): Augmentation methods. Defaults to None.
             data_preprocessor (BaseDataProcessor, optional): Data preprocessor. Defaults to None.
         """
@@ -53,13 +56,21 @@ class RAMASDataset(Dataset):
         self.win_min_length = win_min_length
         
         self.transform = transform
+        self.feature_extractor = feature_extractor
         self.data_preprocessor = data_preprocessor
 
-        self.info = load_data(dump_filepath)
+        partial_dump_filename = generate_dump_filename(vad_metadata=self.vad_metadata,  
+                                                       win_max_length=self.win_max_length, 
+                                                       win_shift=self.win_shift,
+                                                       win_min_length=self.win_min_length, 
+                                                       feature_extractor=self.feature_extractor)
+        
+        full_dump_filename = '{}_{}.pickle'.format(dump_filepath, partial_dump_filename)
+        self.info = load_data(full_dump_filename)
 
         if not self.info:
             self.prepare_data()
-            save_data(self.info, dump_filepath)
+            save_data(self.info, full_dump_filename)
 
     def prepare_data(self) -> None:
         """Prepares data
@@ -115,7 +126,10 @@ class RAMASDataset(Dataset):
 
             for window in intersections:
                 wave = full_wave[window['start']: window['end']].clone()
-            
+                
+                if self.feature_extractor:
+                    wave = self.feature_extractor(wave)
+                
                 self.info['samples'].append({
                     'fp': sample_fp,
                     'wave': wave,
@@ -152,13 +166,14 @@ class RAMASDataset(Dataset):
         data = self.info['samples'][index]
         
         a_data = data['wave']
-        a_data = torch.nn.functional.pad(a_data, (0, max(0, int(self.win_max_length * self.sr) - len(a_data))), mode='constant')
 
         if self.transform:
             a_data = self.transform(a_data)
 
         if self.data_preprocessor:
             a_data = self.data_preprocessor(a_data)
+        else:
+            a_data = torch.nn.functional.pad(a_data, (0, max(0, int(self.win_max_length * self.sr) - len(a_data))), mode='constant')
 
         # OHE
         emo_values = emo_to_label(data['emo'], self.include_neutral)
@@ -194,7 +209,7 @@ if __name__ == "__main__":
         with open(os.path.join(data_config['DATA_ROOT'], data_config['VAD_FILE']), 'rb') as handle:
             vad_metadata = pickle.load(handle)
 
-        dump_filepath = os.path.join(data_config['DATA_ROOT'], 'RAMAS_{}_{}.pickle'.format(ds.upper(), data_config['FEATURES_DUMP_FILE']))
+        dump_filepath = os.path.join(data_config['DATA_ROOT'], 'RAMAS_{}_{}'.format(ds.upper(), data_config['FEATURES_DUMP_FILE']))
 
         rd = RAMASDataset(audio_root=os.path.join(data_config['DATA_ROOT'], data_config['VOCALS_ROOT']),
                           metadata=labels, dump_filepath=dump_filepath,
