@@ -97,7 +97,7 @@ def main(d_config: dict, t_config: dict) -> None:
     for ds in ds_names:
         metadata_info[ds] = {
             'labels': labels[labels['subset'] == ds_names[ds]],
-            'dump_filepath': os.path.join(data_root, 'CMUMOSEI_{0}_{1}.pickle'.format(ds_names[ds].upper(), features_dump_file)),
+            'dump_filepath': os.path.join(data_root, 'CMUMOSEI_{0}_{1}'.format(ds_names[ds].upper(), features_dump_file)),
         }
 
         if 'train' in ds:
