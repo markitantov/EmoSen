@@ -97,8 +97,9 @@ def main(d_config: dict, t_config: dict) -> None:
             vad_metadata = pickle.load(handle)
         
         metadata_info[ds] = {
+            'audio_root': os.path.join(data_root, audio_root, ds_names[ds]),
             'labels': labels[labels['subset'] == ds_names[ds]],
-            'dump_filepath': os.path.join(data_root, 'MELD_{0}_{1}.pickle'.format(ds_names[ds].upper(), features_dump_file)),
+            'dump_filepath': os.path.join(data_root, 'MELD_{0}_{1}'.format(ds_names[ds].upper(), features_dump_file)),
             'vad_metadata': vad_metadata
         }
 
@@ -125,7 +126,7 @@ def main(d_config: dict, t_config: dict) -> None:
     for ds in ds_names:
         if 'train' in ds:
             datasets[ds] = torch.utils.data.ConcatDataset([
-                MELDDataset(audio_root=os.path.join(data_root, audio_root),
+                MELDDataset(audio_root=metadata_info[ds]['audio_root'],
                             metadata=metadata_info[ds]['labels'], 
                             dump_filepath=metadata_info[ds]['dump_filepath'],
                             vad_metadata=metadata_info[ds]['vad_metadata'],
@@ -196,7 +197,7 @@ def main(d_config: dict, t_config: dict) -> None:
     
     # Defining weighted loss
     class_sample_count = datasets_stats['MELD']['train']['counts']
-    loss = MTLoss(emotion_weights=torch.Tensor(class_sample_count['emo_7'] / sum(class_sample_count['emo_7'])).to(device), emotion_alpha=3,
+    loss = MTLoss(emotion_weights=torch.Tensor(class_sample_count['emo_7'] / sum(class_sample_count['emo_7'])).to(device), emotion_alpha=1,
                   sentiment_weights=torch.Tensor(class_sample_count['sen_3'] / sum(class_sample_count['sen_3'])).to(device), sentiment_alpha=1)
     
     # Defining optimizer
