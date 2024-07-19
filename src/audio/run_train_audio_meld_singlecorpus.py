@@ -138,7 +138,7 @@ def main(d_config: dict, t_config: dict) -> None:
 
             datasets_stats['MELD'][ds] = datasets[ds].datasets[0].info['stats']
         else:
-            datasets[ds] = MELDDataset(audio_root=os.path.join(data_root, audio_root),
+            datasets[ds] = MELDDataset(audio_root=metadata_info[ds]['audio_root'],
                                        metadata=metadata_info[ds]['labels'], 
                                        dump_filepath=metadata_info[ds]['dump_filepath'],
                                        vad_metadata=metadata_info[ds]['vad_metadata'],
