@@ -1,4 +1,9 @@
+import sys
+
+sys.path.append('src')
+
 import os
+import re
 import pickle
 
 import numpy as np
@@ -213,6 +218,21 @@ def slice_audio(start_time: float, end_time: float, win_max_length: float, win_s
         return timings
     else:
         return [{'start': start_time, 'end': end_time}]
+    
+    
+def generate_dump_filename(**kwargs: dict) -> str:
+    """Generates dump filename
+
+    Returns:
+        str: dump filename
+    """
+    feature_extractor_info = '_{}'.format(''.join(
+        [i[:2].upper() for i in re.findall('([A-Z][a-z]+)',
+                                           str(kwargs['feature_extractor']))])) if kwargs['feature_extractor'] else ''
+    return '{0}{1}{2}{3}{4}'.format('VAD' if kwargs['vad_metadata'] else '',
+                                    kwargs['win_max_length'], kwargs['win_shift'], kwargs['win_min_length'],
+                                    feature_extractor_info)  
+    
 
 
 if __name__ == "__main__":
