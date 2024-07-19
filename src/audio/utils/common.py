@@ -179,3 +179,11 @@ def get_source_code_of_file(script_path: str) -> str:
         source_code = f.read()
 
     return source_code
+
+
+class AttrDict(dict):
+    """Dict with attributes
+    """
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
