@@ -21,10 +21,12 @@ from audio.configs.singlecorpus_config import training_config as tconf
 from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion, WhiteNoise, Gain
 
 from audio.data.meld_dataset import MELDDataset
-from audio.data.data_preprocessors import Wav2Vec2DataPreprocessor
+from audio.data.data_preprocessors import BaseDataPreprocessor
 from audio.data.grouping import singlecorpus_grouping
 
-from audio.models.audio_models_v2 import *
+from audio.features.feature_extractors import AudeeringFeatureExtractor
+
+from audio.models.audio_models_v3 import *
 
 from audio.loss.loss import MTLoss
 
@@ -32,14 +34,14 @@ from audio.utils.accuracy import *
 
 from audio.net_trainer.net_trainer import NetTrainer, LabelType
 
-from audio.utils.common import get_source_code, define_seed
+from audio.utils.common import get_source_code, define_seed, AttrDict
   
 
 def main(d_config: dict, t_config: dict) -> None:
     """Trains with configuration in the following steps:
     - Defines datasets names
     - Defines data augmentations
-    - Defines data preprocessor
+    - Defines feature extractor and data preprocessor
     - Defines datasets
     - Defines dataloaders
     - Defines measures
@@ -68,7 +70,7 @@ def main(d_config: dict, t_config: dict) -> None:
     source_code = 'Data configuration:\n{0}\nTraining configuration:\n{1}\n\nSource code:\n{2}'.format(
         pprint.pformat(d_config),
         pprint.pformat(t_config),
-        get_source_code([main, model_cls, MELDDataset, Wav2Vec2DataPreprocessor, NetTrainer]))
+        get_source_code([main, model_cls, MELDDataset, AudeeringFeatureExtractor, BaseDataPreprocessor, NetTrainer]))
     
     # Defining datasets 
     ds_names = {
@@ -117,8 +119,9 @@ def main(d_config: dict, t_config: dict) -> None:
         else:
             all_transforms[ds] = None
         
-    # Defining data preprocessor
-    data_preprocessor = Wav2Vec2DataPreprocessor(model_name)
+    # Defining feature extractor and data preprocessor
+    feature_extractor = AudeeringFeatureExtractor(sr=16000, win_max_length=4)
+    data_preprocessor = BaseDataPreprocessor()
     
     # Defining datasets
     datasets = {}
@@ -132,7 +135,9 @@ def main(d_config: dict, t_config: dict) -> None:
                             vad_metadata=metadata_info[ds]['vad_metadata'],
                             include_neutral=True,
                             sr=16000, win_max_length=4, win_shift=2, win_min_length=0,
-                            transform=t, data_preprocessor=data_preprocessor) for t in all_transforms[ds]
+                            feature_extractor=feature_extractor,
+                            transform=t, 
+                            data_preprocessor=data_preprocessor) for t in all_transforms[ds]
                 ]
             )
 
@@ -144,7 +149,9 @@ def main(d_config: dict, t_config: dict) -> None:
                                        vad_metadata=metadata_info[ds]['vad_metadata'],
                                        include_neutral=True,
                                        sr=16000, win_max_length=4, win_shift=2, win_min_length=0,
-                                       transform=all_transforms[ds], data_preprocessor=data_preprocessor)
+                                       feature_extractor=feature_extractor,
+                                       transform=all_transforms[ds], 
+                                       data_preprocessor=data_preprocessor)
 
             datasets_stats['MELD'][ds] = datasets[ds].info['stats']
 
@@ -189,10 +196,10 @@ def main(d_config: dict, t_config: dict) -> None:
                              c_names_to_display=c_names_to_display)
     
     # Defining model
-    model_cfg = AutoConfig.from_pretrained(model_name)
+    model_cfg = AttrDict()
     model_cfg.out_emo = len(c_names['emo'])
     model_cfg.out_sen = len(c_names['sen'])
-    model = model_cls.from_pretrained(model_name, config=model_cfg)
+    model = model_cls(config=model_cfg)
     model.to(device)
     
     # Defining weighted loss
