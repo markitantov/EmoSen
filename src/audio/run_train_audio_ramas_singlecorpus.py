@@ -193,12 +193,11 @@ def main(d_config: dict, t_config: dict) -> None:
     
     # Defining weighted loss
     class_sample_count = datasets_stats['RAMAS']['train']['counts']
-    loss = MTLoss(emotion_weights=torch.Tensor(class_sample_count['emo_7'] / sum(class_sample_count['emo_7'])).to(device), emotion_alpha=1,
+    loss = MTLoss(emotion_weights=torch.Tensor(class_sample_count['emo_7'] / sum(class_sample_count['emo_7'])).to(device), emotion_alpha=3,
                   sentiment_weights=torch.Tensor(class_sample_count['sen_3'] / sum(class_sample_count['sen_3'])).to(device), sentiment_alpha=1)
     
     # Defining optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5, betas=(0.9, 0.999), eps=1e-08)
 
     # Defining scheduler
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
