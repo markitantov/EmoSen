@@ -210,6 +210,54 @@ class MeanUARMeasure:
         return self.name
     
     
+class MeanWARMeasure:
+    """A(WAR) aka accuracy
+    Emotional multilabel WAR
+    
+    Args:
+        name (str, optional): Performance measure name
+    """
+    def __init__(self, name: str = 'mA(WAR)') -> None:
+        self.name = name
+        self.acc = []
+    
+    def calc(self, targets: list[np.ndarray] | np.ndarray, predicts: list[np.ndarray] | np.ndarray) -> float:
+        """Calculates mean Weighted Average Recall
+
+        Args:
+            targets (list[np.ndarray] | np.ndarray): Targets array
+            predicts (list[np.ndarray] | np.ndarray): Predicts array
+
+        Returns:
+            float: mA(WAR) value
+        """
+        targets = np.array(targets)
+        predicts = np.array(predicts)
+
+        self.acc = []
+        for i in range(0, predicts.shape[1]):
+            cr = metrics.classification_report(targets[:, i], predicts[:, i], output_dict=True, zero_division=0)
+            self.acc.append(cr['weighted avg']['recall'] * 100)
+            
+        return np.mean(self.acc)
+    
+    def get_scores(self) -> list[float]:
+        """Get class-wise measures
+
+        Returns:
+            list[float]: Class-wise measure values
+        """
+        return self.acc
+    
+    def __str__(self) -> str:
+        """Get name of performance measure
+
+        Returns:
+            str: Name of measure
+        """
+        return self.name
+    
+    
 class WARMeasure: 
     """A(WAR) aka accuracy
     Used for sentiment recognition in CMUMOSEI or 
