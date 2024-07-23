@@ -228,3 +228,17 @@ class ClassificationHead(nn.Module):
         x_emo = self.fc_emo2(x_emo)
         x_sen = self.fc_sen2(x_sen)
         return {'emo': x_emo, 'sen': x_sen}
+    
+    
+class SmallClassificationHead(nn.Module):
+    """ClassificationHead"""
+    def __init__(self, input_size=256, out_emo=6, out_sen=3):
+        super(SmallClassificationHead, self).__init__()
+        self.fc_emo = nn.Linear(input_size, out_emo)
+        self.fc_sen = nn.Linear(input_size, out_sen)
+
+
+    def forward(self, x):
+        x_emo = self.fc_emo(x)
+        x_sen = self.fc_sen(x)
+        return {'emo': x_emo, 'sen': x_sen}
