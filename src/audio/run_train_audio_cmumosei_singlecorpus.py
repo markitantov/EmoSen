@@ -13,18 +13,21 @@ import pandas as pd
 import torch
 from torchvision import transforms
 
-from transformers import AutoConfig
-
 from audio.configs.singlecorpus_config import data_config as dconf
 from audio.configs.singlecorpus_config import training_config as tconf
 
 from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion, WhiteNoise, Gain
 
 from audio.data.cmumosei_dataset import CMUMOSEIDataset
-from audio.data.data_preprocessors import Wav2Vec2DataPreprocessor
 from audio.data.grouping import singlecorpus_grouping
+from audio.data.common import define_context_length
 
-from audio.models.audio_models_v2 import *
+from audio.features.feature_extractors import *
+from audio.data.data_preprocessors import *
+
+from audio.models.audio_transformers_models import *
+from audio.models.audio_xlstm_models import *
+from audio.models.audio_mamba_models import *
 
 from audio.loss.loss import MLMTLoss
 
@@ -56,31 +59,43 @@ def main(d_config: dict, t_config: dict) -> None:
     audio_root = d_config['VOCALS_ROOT']
     labels_file = d_config['LABELS_FILE']
     vad_file = d_config['VAD_FILE']
-    features_dump_file = d_config['FEATURES_DUMP_FILE']
+            
+    # Defining class names
+    c_names = d_config['C_NAMES']
+    include_neutral = d_config['INCLUDE_NEUTRAL']
     
     logs_root = t_config['LOGS_ROOT']
-    model_cls = t_config['MODEL_PARAMS']['model_cls']
-    model_name = t_config['MODEL_PARAMS']['args']['model_name']
+    
     aug = t_config['AUGMENTATION']
+    
+    features_dump_file = t_config['FEATURE_EXTRACTOR']['FEATURES_DUMP_FILE']
+    win_max_length = t_config['FEATURE_EXTRACTOR']['WIN_MAX_LENGTH']
+    win_shift = t_config['FEATURE_EXTRACTOR']['WIN_SHIFT']
+    win_min_length = t_config['FEATURE_EXTRACTOR']['WIN_MIN_LENGTH']
+    sr = t_config['FEATURE_EXTRACTOR']['SR']
+    
+    feature_extractor_cls = t_config['FEATURE_EXTRACTOR']['cls']
+    feature_extractor_args = t_config['FEATURE_EXTRACTOR']['args']
+    
+    data_preprocessor_cls = t_config['DATA_PREPROCESSOR']['cls']
+    data_preprocessor_args = t_config['DATA_PREPROCESSOR']['args']
+    
+    model_cls = t_config['MODEL']['cls']
+    model_args = t_config['MODEL']['args']
+    
     num_epochs = t_config['NUM_EPOCHS']
     batch_size = t_config['BATCH_SIZE']
     
     source_code = 'Data configuration:\n{0}\nTraining configuration:\n{1}\n\nSource code:\n{2}'.format(
         pprint.pformat(d_config),
         pprint.pformat(t_config),
-        get_source_code([main, model_cls, CMUMOSEIDataset, Wav2Vec2DataPreprocessor, NetTrainer]))
+        get_source_code([main, model_cls, CMUMOSEIDataset, feature_extractor_cls, data_preprocessor_cls, NetTrainer]))
     
     # Defining datasets 
     ds_names = {
         'train': 'train', 
         'devel': 'dev',
         'test': 'test',
-    }
-    
-    # Defining class names
-    c_names = {
-        'emo': ['happy', 'sad', 'anger', 'surprise', 'disgust', 'fear'],
-        'sen': ['negative', 'neutral', 'positive']
     }
     
     c_names_to_display = {}
@@ -114,8 +129,9 @@ def main(d_config: dict, t_config: dict) -> None:
         else:
             all_transforms[ds] = None
         
-    # Defining data preprocessor
-    data_preprocessor = Wav2Vec2DataPreprocessor(model_name)
+    # Defining feature extractor and data preprocessor
+    feature_extractor = feature_extractor_cls(**feature_extractor_args)
+    data_preprocessor = data_preprocessor_cls(**data_preprocessor_args)
     
     # Defining datasets
     datasets = {}
@@ -127,9 +143,11 @@ def main(d_config: dict, t_config: dict) -> None:
                                 metadata=metadata_info[ds]['labels'], 
                                 dump_filepath=metadata_info[ds]['dump_filepath'],
                                 vad_metadata=vad_metadata,
-                                include_neutral=False,
-                                sr=16000, win_max_length=4, win_shift=2, win_min_length=0,
-                                transform=t, data_preprocessor=data_preprocessor) for t in all_transforms[ds]
+                                include_neutral=include_neutral,
+                                sr=sr, win_max_length=win_max_length, win_shift=win_shift, win_min_length=win_min_length,
+                                feature_extractor=feature_extractor,
+                                transform=t, 
+                                data_preprocessor=data_preprocessor) for t in all_transforms[ds]
                 ]
             )
 
@@ -139,9 +157,11 @@ def main(d_config: dict, t_config: dict) -> None:
                                            metadata=metadata_info[ds]['labels'], 
                                            dump_filepath=metadata_info[ds]['dump_filepath'],
                                            vad_metadata=vad_metadata, 
-                                           include_neutral=False,
-                                           sr=16000, win_max_length=4, win_shift=2, win_min_length=0,
-                                           transform=all_transforms[ds], data_preprocessor=data_preprocessor)
+                                           include_neutral=include_neutral,
+                                           sr=sr, win_max_length=win_max_length, win_shift=win_shift, win_min_length=win_min_length,
+                                           feature_extractor=feature_extractor,
+                                           transform=all_transforms[ds], 
+                                           data_preprocessor=data_preprocessor)
 
             datasets_stats['CMUMOSEI'][ds] = datasets[ds].info['stats']
 
@@ -160,7 +180,7 @@ def main(d_config: dict, t_config: dict) -> None:
         MeanWeightedAccuracyMeasure('emo_mWA'),
         MeanWeightedF1Measure('emo_mWF1'),
         MeanMacroF1Measure('emo_mMacroF1'),
-        MeanUARMeasure('emo_mUAR'),
+        MeanWARMeasure('emo_mA(WAR)'),
         WARMeasure('sen_A(WAR)'),
         UARMeasure('sen_UAR'),
         WeightedF1Measure('sen_WF1'),
@@ -186,10 +206,7 @@ def main(d_config: dict, t_config: dict) -> None:
                              c_names_to_display=c_names_to_display)
     
     # Defining model
-    model_cfg = AutoConfig.from_pretrained(model_name)
-    model_cfg.out_emo = len(c_names['emo'])
-    model_cfg.out_sen = len(c_names['sen'])
-    model = model_cls.from_pretrained(model_name, config=model_cfg)
+    model = model_cls(**model_args)
     model.to(device)
     
     # Defining weighted loss
@@ -223,15 +240,42 @@ def run_expression_training() -> None:
     """Wrapper for training 
     """
     d_config = dconf['CMUMOSEI']
-    model_cls = [AudioModelV3, AudioModelV4, AudioModelV5]
-
-    for augmentation in [False]:
-        for m_cls in model_cls:
-            t_config = deepcopy(tconf)
-            t_config['AUGMENTATION'] = augmentation
-            t_config['MODEL_PARAMS']['model_cls'] = m_cls
+    mt_clses = {'models': [AudioModelT1, AudioModelT2, AudioModelT3, AudioModelT4, AudioModelT5, AudioModelT6],
+                'logs_dir': '/media/maxim/WesternDigital/RAMAS2024/sc_cmumosei/transformers'}
+    mx_clses = {'models': [AudioModelX1, AudioModelX2, AudioModelX3, AudioModelX4, AudioModelX5, AudioModelX6],
+                'logs_dir': '/media/maxim/WesternDigital/RAMAS2024/sc_cmumosei/xlstm'}
+    mm_clses = {'models': [AudioModelM1, AudioModelM2, AudioModelM3, AudioModelM4, AudioModelM5, AudioModelM6],
+                'logs_dir': '/media/maxim/WesternDigital/RAMAS2024/sc_cmumosei/mamba'}
+    
+    m_clses = deepcopy(mx_clses)
+    
+    fe_clses = [AudeeringW2V2FeatureExtractor]
+    win_params = [
+        {'WIN_MAX_LENGTH': 1, 'WIN_SHIFT': 1},
+        {'WIN_MAX_LENGTH': 3, 'WIN_SHIFT': 1},
+        {'WIN_MAX_LENGTH': 4, 'WIN_SHIFT': 2}
+    ]
+    
+    for win_param in win_params:
+        for fe_cls in fe_clses:            
+            for m_cls in m_clses['models']:
+                t_config = deepcopy(tconf)
+                t_config['LOGS_ROOT'] = m_clses['logs_dir']
+                t_config['AUGMENTATION'] = False
                 
-            main(d_config=d_config, t_config=t_config)
+                t_config['FEATURE_EXTRACTOR']['WIN_MAX_LENGTH'] = win_param['WIN_MAX_LENGTH']
+                t_config['FEATURE_EXTRACTOR']['WIN_SHIFT'] = win_param['WIN_SHIFT']
+                t_config['FEATURE_EXTRACTOR']['cls'] = fe_cls
+                t_config['FEATURE_EXTRACTOR']['args']['win_max_length'] = win_param['WIN_MAX_LENGTH']
+                
+                t_config['MODEL']['cls'] = m_cls
+                model_args = AttrDict()
+                model_args.out_emo = len(d_config['C_NAMES']['emo'])
+                model_args.out_sen = len(d_config['C_NAMES']['sen'])
+                model_args.context_length = define_context_length(win_param['WIN_MAX_LENGTH'])
+                t_config['MODEL']['args'] = {'config': model_args}
+                
+                main(d_config=d_config, t_config=t_config)
 
     
 if __name__ == "__main__":

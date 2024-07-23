@@ -231,7 +231,24 @@ def generate_dump_filename(**kwargs: dict) -> str:
                                            str(kwargs['feature_extractor']))])) if kwargs['feature_extractor'] else ''
     return '{0}{1}{2}{3}{4}'.format('VAD' if kwargs['vad_metadata'] else '',
                                     kwargs['win_max_length'], kwargs['win_shift'], kwargs['win_min_length'],
-                                    feature_extractor_info)  
+                                    feature_extractor_info)
+    
+    
+def define_context_length(win_max_length: int = 4) -> int:
+    """Define context length in models
+
+    Args:
+        win_max_length (int): Max length of window. Defaults to 4.
+
+    Returns:
+        int: Context length
+    """
+    return {
+        1: 49,
+        2: 99,
+        3: 149,
+        4: 199
+    }[win_max_length]
     
 
 
