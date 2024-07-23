@@ -10,6 +10,11 @@ data_config: dict = {
         'VOCALS_ROOT': '',
         'VAD_FILE': '',
         'LABELS_FILE': '',
+        'C_NAMES': {
+            'emo': ['happy', 'sad', 'anger', 'surprise', 'disgust', 'fear'],
+            'sen': ['negative', 'neutral', 'positive']
+        },
+        'INCLUDE_NEUTRAL': False,
     },
     'MELD': {
         'DATA_ROOT': '',
@@ -18,6 +23,11 @@ data_config: dict = {
         'VOCALS_ROOT': '',
         'VAD_FILE': '',
         'LABELS_FILE': '',
+        'C_NAMES': {
+            'emo': ['neutral', 'happy', 'sad', 'anger', 'surprise', 'disgust', 'fear'],
+            'sen': ['negative', 'neutral', 'positive']
+        },
+        'INCLUDE_NEUTRAL': True
     },
     'RAMAS': {
         'DATA_ROOT': '',
@@ -26,15 +36,35 @@ data_config: dict = {
         'VOCALS_ROOT': '',
         'VAD_FILE': '',
         'LABELS_FILE': '',
-    },  
+        'C_NAMES': {
+            'emo': ['neutral', 'happy', 'sad', 'anger', 'surprise', 'disgust', 'fear'],
+            'sen': ['negative', 'neutral', 'positive']
+        },
+        'INCLUDE_NEUTRAL': True
+    },
 }
 
 training_config: dict = {
     'LOGS_ROOT': '',
-    'MODEL_PARAMS': {
-        'model_cls': None,
+    'MODEL': {
+        'cls': None,
         'args': {
-            None
+        }
+    },
+    'FEATURE_EXTRACTOR': {
+        'FEATURES_DUMP_FILE': '',
+        'WIN_MAX_LENGTH': 4,
+        'WIN_SHIFT': 2,
+        'WIN_MIN_LENGTH': 0,
+        'SR': 16000,
+        'cls': None,
+        'args': {
+            'sr': 16000
+        }
+    },
+    'DATA_PREPROCESSOR': {
+        'cls': None,
+        'args': {
         }
     },
     'AUGMENTATION': None,
