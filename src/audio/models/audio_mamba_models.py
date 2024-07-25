@@ -5,15 +5,7 @@ sys.path.append('src')
 import torch
 import torch.nn as nn
 
-from xlstm import (
-    xLSTMBlockStack,
-    xLSTMBlockStackConfig,
-    mLSTMBlockConfig,
-    mLSTMLayerConfig,
-    sLSTMBlockConfig,
-    sLSTMLayerConfig,
-    FeedForwardConfig,
-)
+from mamba_ssm.modules.mamba2 import Mamba2
 
 from audio.models.common import ClassificationHead, SmallClassificationHead
 from audio.utils.common import AttrDict
@@ -27,24 +19,8 @@ class AudioModelM1(nn.Module):
         
         self.f_size = 1024
         
-        self.xlstm = xLSTMBlockStack(xLSTMBlockStackConfig(
-            mlstm_block=mLSTMBlockConfig(
-                mlstm=mLSTMLayerConfig(
-                    conv1d_kernel_size=4, qkv_proj_blocksize=4, num_heads=4
-                )
-            ),
-            slstm_block=sLSTMBlockConfig(
-                slstm=sLSTMLayerConfig(
-                    num_heads=4,
-                    conv1d_kernel_size=4,
-                ),
-                feedforward=FeedForwardConfig(proj_factor=1.3, act_fn="gelu"),
-            ),
-            context_length=config.context_length,
-            num_blocks=3,
-            embedding_dim=1024,
-            slstm_at=[1],
-        ))
+        self.ml1 = Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=2)
+        self.ml2 = Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=2)
         
         self.selu = nn.SELU()
         self.cl_head = SmallClassificationHead(input_size=self.f_size, 
@@ -52,7 +28,10 @@ class AudioModelM1(nn.Module):
                                           out_sen=config.out_sen)
         
     def forward(self, x):        
-        x = self.xlstm(x)
+        x = self.ml1(x)
+        x = self.selu(x)
+        
+        x = self.ml2(x)
         x = self.selu(x)
 
         x = torch.mean(x, dim=1)
@@ -67,24 +46,8 @@ class AudioModelM2(nn.Module):
         
         self.f_size = 1024
         
-        self.xlstm = xLSTMBlockStack(xLSTMBlockStackConfig(
-            mlstm_block=mLSTMBlockConfig(
-                mlstm=mLSTMLayerConfig(
-                    conv1d_kernel_size=4, qkv_proj_blocksize=4, num_heads=4
-                )
-            ),
-            slstm_block=sLSTMBlockConfig(
-                slstm=sLSTMLayerConfig(
-                    num_heads=4,
-                    conv1d_kernel_size=4,
-                ),
-                feedforward=FeedForwardConfig(proj_factor=1.3, act_fn="gelu"),
-            ),
-            context_length=config.context_length,
-            num_blocks=3,
-            embedding_dim=1024,
-            slstm_at=[1],
-        ))
+        self.ml1 = Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=2)
+        self.ml2 = Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=2)
         
         self.selu = nn.SELU()
         self.cl_head = ClassificationHead(input_size=self.f_size, 
@@ -92,7 +55,10 @@ class AudioModelM2(nn.Module):
                                           out_sen=config.out_sen)
         
     def forward(self, x):        
-        x = self.xlstm(x)
+        x = self.ml1(x)
+        x = self.selu(x)
+        
+        x = self.ml2(x)
         x = self.selu(x)
 
         x = torch.mean(x, dim=1)
@@ -107,24 +73,8 @@ class AudioModelM3(nn.Module):
         
         self.f_size = 1024
         
-        self.xlstm = xLSTMBlockStack(xLSTMBlockStackConfig(
-            mlstm_block=mLSTMBlockConfig(
-                mlstm=mLSTMLayerConfig(
-                    conv1d_kernel_size=4, qkv_proj_blocksize=4, num_heads=4
-                )
-            ),
-            slstm_block=sLSTMBlockConfig(
-                slstm=sLSTMLayerConfig(
-                    num_heads=4,
-                    conv1d_kernel_size=4,
-                ),
-                feedforward=FeedForwardConfig(proj_factor=1.3, act_fn="gelu"),
-            ),
-            context_length=config.context_length,
-            num_blocks=2,
-            embedding_dim=1024,
-            slstm_at=[1],
-        ))
+        self.ml1 = Mamba2(d_model=self.f_size, d_state=128, d_conv=4, expand=2)
+        self.ml2 = Mamba2(d_model=self.f_size, d_state=128, d_conv=4, expand=2)
         
         self.selu = nn.SELU()
         self.cl_head = SmallClassificationHead(input_size=self.f_size, 
@@ -132,7 +82,10 @@ class AudioModelM3(nn.Module):
                                           out_sen=config.out_sen)
         
     def forward(self, x):        
-        x = self.xlstm(x)
+        x = self.ml1(x)
+        x = self.selu(x)
+        
+        x = self.ml2(x)
         x = self.selu(x)
 
         x = torch.mean(x, dim=1)
@@ -147,23 +100,8 @@ class AudioModelM4(nn.Module):
         
         self.f_size = 1024
         
-        self.xlstm = xLSTMBlockStack(xLSTMBlockStackConfig(
-            mlstm_block=mLSTMBlockConfig(
-                mlstm=mLSTMLayerConfig(
-                    conv1d_kernel_size=4, qkv_proj_blocksize=4, num_heads=4
-                )
-            ),
-            slstm_block=sLSTMBlockConfig(
-                slstm=sLSTMLayerConfig(
-                    num_heads=4,
-                    conv1d_kernel_size=4,
-                ),
-            ),
-            context_length=config.context_length,
-            num_blocks=2,
-            embedding_dim=1024,
-            slstm_at=[1],
-        ))
+        self.ml1 = Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=2)
+        self.ml2 = Mamba2(d_model=self.f_size, d_state=128, d_conv=4, expand=2)
         
         self.selu = nn.SELU()
         self.cl_head = SmallClassificationHead(input_size=self.f_size, 
@@ -171,7 +109,10 @@ class AudioModelM4(nn.Module):
                                           out_sen=config.out_sen)
         
     def forward(self, x):        
-        x = self.xlstm(x)
+        x = self.ml1(x)
+        x = self.selu(x)
+        
+        x = self.ml2(x)
         x = self.selu(x)
 
         x = torch.mean(x, dim=1)
@@ -186,24 +127,8 @@ class AudioModelM5(nn.Module):
         
         self.f_size = 1024
         
-        self.xlstm = xLSTMBlockStack(xLSTMBlockStackConfig(
-            mlstm_block=mLSTMBlockConfig(
-                mlstm=mLSTMLayerConfig(
-                    conv1d_kernel_size=4, qkv_proj_blocksize=4, num_heads=4
-                )
-            ),
-            slstm_block=sLSTMBlockConfig(
-                slstm=sLSTMLayerConfig(
-                    num_heads=4,
-                    conv1d_kernel_size=4,
-                ),
-                feedforward=FeedForwardConfig(proj_factor=1.3, act_fn="gelu"),
-            ),
-            context_length=config.context_length,
-            num_blocks=3,
-            embedding_dim=1024,
-            slstm_at=[0, 2],
-        ))
+        self.ml1 = Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=2)
+        self.ml2 = Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=4)
         
         self.selu = nn.SELU()
         self.cl_head = SmallClassificationHead(input_size=self.f_size, 
@@ -211,7 +136,10 @@ class AudioModelM5(nn.Module):
                                           out_sen=config.out_sen)
         
     def forward(self, x):        
-        x = self.xlstm(x)
+        x = self.ml1(x)
+        x = self.selu(x)
+        
+        x = self.ml2(x)
         x = self.selu(x)
 
         x = torch.mean(x, dim=1)
@@ -226,18 +154,9 @@ class AudioModelM6(nn.Module):
         
         self.f_size = 1024
         
-        self.xlstm = xLSTMBlockStack(xLSTMBlockStackConfig(
-            mlstm_block=mLSTMBlockConfig(
-                mlstm=mLSTMLayerConfig(
-                    conv1d_kernel_size=4, qkv_proj_blocksize=4, num_heads=4
-                )
-            ),
-            context_length=config.context_length,
-            num_blocks=2,
-            embedding_dim=1024,
-            slstm_at=[],
-            add_post_blocks_norm=True,
-        ))
+        self.ml1 = Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=2)
+        self.ml2 = Mamba2(d_model=self.f_size, d_state=128, d_conv=4, expand=4)
+        self.ml3 = Mamba2(d_model=self.f_size, d_state=64, d_conv=4, expand=8)
         
         self.selu = nn.SELU()
         self.cl_head = SmallClassificationHead(input_size=self.f_size, 
@@ -245,9 +164,15 @@ class AudioModelM6(nn.Module):
                                           out_sen=config.out_sen)
         
     def forward(self, x):        
-        x = self.xlstm(x)
+        x = self.ml1(x)
         x = self.selu(x)
-
+        
+        x = self.ml2(x)
+        x = self.selu(x)
+        
+        x = self.ml3(x)
+        x = self.selu(x)
+        
         x = torch.mean(x, dim=1)
         
         return self.cl_head(x)
