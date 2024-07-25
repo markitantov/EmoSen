@@ -10,3 +10,4 @@ multicorpus_config.py
 pretrained_models/
 
 notebooks/other
+notebooks/*.csv
