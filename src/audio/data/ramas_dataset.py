@@ -64,8 +64,14 @@ class RAMASDataset(Dataset):
                                                        win_shift=self.win_shift,
                                                        win_min_length=self.win_min_length, 
                                                        feature_extractor=self.feature_extractor)
+
+        self.full_dump_path = os.path.join(os.path.dirname(self.audio_root), 'features',
+                                           '{}_{}'.format(dump_filepath, partial_dump_filename))
+        full_dump_filename = os.path.join(self.full_dump_path, 'stats.pickle')
+
+        if not os.path.exists(self.full_dump_path):
+            os.makedirs(self.full_dump_path)
         
-        full_dump_filename = '{}_{}.pickle'.format(dump_filepath, partial_dump_filename)
         self.info = load_data(full_dump_filename)
 
         if not self.info:
@@ -124,7 +130,7 @@ class RAMASDataset(Dataset):
             else:
                 intersections = audio_windows
 
-            for window in intersections:
+            for w_idx, window in enumerate(intersections):
                 wave = full_wave[window['start']: window['end']].clone()
                 
                 if self.feature_extractor:
@@ -132,12 +138,16 @@ class RAMASDataset(Dataset):
                 
                 self.info['samples'].append({
                     'fp': sample_fp,
-                    'wave': wave,
+                    'w_idx': w_idx,
                     'start': window['start'],
                     'end': window['end'],
                     'emo': sample_emo,
                     'sen': sample_sen,
                 })
+                
+                save_data(wave, os.path.join(self.full_dump_path, 
+                                             os.path.basename(sample_fp).replace('.wav', 
+                                                                                 '_{0}.dat'.format(w_idx))))
                 
         emo_7 = self.metadata[['neutral', 'happy', 'sad', 'anger','surprise', 'disgust', 'fear']].values
         self.info['stats']['counts']['emo_7'] = np.unique(np.argmax(emo_7, axis=1), return_counts=True)[1]
@@ -164,8 +174,9 @@ class RAMASDataset(Dataset):
             tuple[torch.Tensor, dict[torch.Tensor], dict]: x, Y[emo, sen], sample_info
         """
         data = self.info['samples'][index]
-        
-        a_data = data['wave']
+        a_data = load_data(os.path.join(self.full_dump_path, 
+                                        os.path.basename(data['fp']).replace('.wav', 
+                                                                             '_{0}.dat'.format(data['w_idx']))))
 
         if self.transform:
             a_data = self.transform(a_data)

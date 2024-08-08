@@ -20,6 +20,7 @@ from audio.data.common import load_data, save_data, slice_audio, find_intersecti
 from audio.data.data_preprocessors import BaseDataPreprocessor
 from audio.features.feature_extractors import BaseFeatureExtractor
 
+
 class CMUMOSEIDataset(Dataset):
     def __init__(self, audio_root: str, metadata: pd.DataFrame, dump_filepath: str, 
                  vad_metadata: dict[list] = None, include_neutral: bool = False, 
@@ -64,7 +65,12 @@ class CMUMOSEIDataset(Dataset):
                                                        win_min_length=self.win_min_length, 
                                                        feature_extractor=self.feature_extractor)
         
-        full_dump_filename = '{}_{}.pickle'.format(dump_filepath, partial_dump_filename)
+        self.full_dump_path = os.path.join(os.path.dirname(self.audio_root), 'features'
+                                           '{}_{}'.format(dump_filepath, partial_dump_filename))
+        full_dump_filename = os.path.join(self.full_dump_path, 'stats.pickle')
+
+        if not os.path.exists(self.full_dump_path):
+            os.makedirs(self.full_dump_path)
         
         self.info = load_data(full_dump_filename)
 
@@ -101,7 +107,7 @@ class CMUMOSEIDataset(Dataset):
 
         for sample in tqdm(self.metadata.values):
             sample_fp = os.path.join(self.audio_root, '{0}.wav'.format(sample[0]))
-            sample_fn = '{0}_{1}_{2}.wav'.format(sample[0], float(sample[2]), float(sample[3]))
+            sample_fn = '{0}_{1}_{2}.wav'.format(sample[0], float(sample[2]), float(sample[3])) # creating unique filename
 
             sample_emo = sample[5:12].astype(float)
             sample_sen = sample[4]
@@ -126,7 +132,7 @@ class CMUMOSEIDataset(Dataset):
             else:
                 intersections = audio_windows
 
-            for window in intersections:
+            for w_idx, window in enumerate(intersections):
                 wave = full_wave[window['start']: window['end']].clone()
                 
                 if self.feature_extractor:
@@ -134,12 +140,15 @@ class CMUMOSEIDataset(Dataset):
             
                 self.info['samples'].append({
                     'fp': sample_fn,
-                    'wave': wave,
+                    'w_idx': w_idx,
                     'start': window['start'],
                     'end': window['end'],
                     'emo': sample_emo,
                     'sen': sample_sen,
                 })
+
+                save_data(wave, os.path.join(self.full_dump_path, 
+                                             sample_fn.replace('.wav', '_{0}.dat'.format(w_idx))))
 
         emo_7 = self.metadata[['neutral', 'happy', 'sad', 'anger','surprise', 'disgust', 'fear']].values
         self.info['stats']['counts']['emo_7'] = np.sum(emo_7, axis=0)
@@ -166,8 +175,9 @@ class CMUMOSEIDataset(Dataset):
             tuple[torch.Tensor, dict[torch.Tensor], dict]: x, Y[emo, sen], sample_info
         """
         data = self.info['samples'][index]
-        
-        a_data = data['wave']
+        a_data = load_data(os.path.join(self.full_dump_path, 
+                                        data['fp'].replace('.wav', 
+                                                           '_{0}.dat'.format(data['w_idx']))))
 
         if self.transform:
             a_data = self.transform(a_data)

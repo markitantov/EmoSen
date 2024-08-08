@@ -243,27 +243,28 @@ def run_expression_training() -> None:
     """
     d_config = dconf['MELD']
     
-    mt_clses = {'models': [AudioModelT1, AudioModelT2, AudioModelT3, AudioModelT4, AudioModelT5, AudioModelT6],
-                'logs_dir': '/media/maxim/WesternDigital/RAMAS2024/sc_meld/transformers'}
-    mx_clses = {'models': [AudioModelX1, AudioModelX2, AudioModelX3, AudioModelX4, AudioModelX5, AudioModelX6],
-                'logs_dir': '/media/maxim/WesternDigital/RAMAS2024/sc_meld/xlstm'}
-    mm_clses = {'models': [AudioModelM1, AudioModelM2, AudioModelM3, AudioModelM4, AudioModelM5, AudioModelM6],
-                'logs_dir': '/media/maxim/WesternDigital/RAMAS2024/sc_meld/mamba'}
+    m_clses = [
+        AudioModelT1,  AudioModelT2, AudioModelT3, AudioModelT4, AudioModelT5, AudioModelT6,
+        AudioModelM1,  AudioModelM2, AudioModelM3, AudioModelM4, AudioModelM5, AudioModelM6,
+        AudioModelX1,  AudioModelX2, AudioModelX3, AudioModelX4, AudioModelX5, AudioModelX6,
+    ]
+
+    logs_dir = {
+        'T': '/media/maxim/WesternDigital/RAMAS2024/sc_meldtest/transformers',
+        'M': '/media/maxim/WesternDigital/RAMAS2024/sc_meldtest/mamba',
+        'X': '/media/maxim/WesternDigital/RAMAS2024/sc_meldtest/xlstm'
+    }
     
-    m_clses = deepcopy(mx_clses)
-    
-    fe_clses = [AudeeringW2V2FeatureExtractor]
+    fe_clses = [ExHuBERTFeatureExtractor]
     win_params = [
-        {'WIN_MAX_LENGTH': 1, 'WIN_SHIFT': 1},
-        {'WIN_MAX_LENGTH': 3, 'WIN_SHIFT': 1},
         {'WIN_MAX_LENGTH': 4, 'WIN_SHIFT': 2}
     ]
     
     for win_param in win_params:
         for fe_cls in fe_clses:            
-            for m_cls in m_clses['models']:
+            for m_cls in m_clses:
                 t_config = deepcopy(tconf)
-                t_config['LOGS_ROOT'] = m_clses['logs_dir']
+                t_config['LOGS_ROOT'] = logs_dir[str(m_cls)[-4]]
                 t_config['AUGMENTATION'] = False
                 
                 t_config['FEATURE_EXTRACTOR']['WIN_MAX_LENGTH'] = win_param['WIN_MAX_LENGTH']
