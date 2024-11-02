@@ -12,30 +12,30 @@ import pandas as pd
 
 import torch
 from torchvision import transforms
+from transformers import AutoConfig
 
-from audio.configs.singlecorpus_config import data_config as dconf
-from audio.configs.singlecorpus_config import training_config as tconf
+from configs.singlecorpus_config import data_config as dconf
+from configs.singlecorpus_config import training_config as tconf
 
 from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion, WhiteNoise, Gain
 
 from audio.data.ramas_dataset import RAMASDataset
-from audio.data.grouping import singlecorpus_grouping
-from audio.data.common import define_context_length
+from common.data.grouping import singlecorpus_grouping
+from common.data.utils import define_context_length
 
 from audio.features.feature_extractors import *
 from audio.data.data_preprocessors import *
 
-from audio.models.audio_transformers_models import *
-from audio.models.audio_xlstm_models import *
-from audio.models.audio_mamba_models import *
+from audio.models.audio_2023_model import *
+from audio.models.audio_2024_model import *
 
-from audio.loss.loss import MTLoss
+from common.loss.loss import MTLoss
 
-from audio.utils.accuracy import *
+from common.utils.accuracy import *
 
-from audio.net_trainer.net_trainer import NetTrainer, LabelType
+from common.net_trainer.net_trainer import NetTrainer, LabelType
 
-from audio.utils.common import get_source_code, define_seed
+from common.utils.common import get_source_code, define_seed, AttrDict
   
 
 def main(d_config: dict, t_config: dict) -> None:
@@ -111,7 +111,7 @@ def main(d_config: dict, t_config: dict) -> None:
     for ds in ds_names:
         metadata_info[ds] = {
             'labels': labels[labels['subset'] == ds_names[ds]],
-            'dump_filepath': os.path.join(data_root, 'RAMAS_{0}_{1}'.format(ds_names[ds].upper(), features_dump_file)),
+            'dump_filepath': 'RAMAS_{0}_{1}'.format(ds_names[ds].upper(), features_dump_file),
         }
 
         if 'train' in ds:
@@ -205,7 +205,7 @@ def main(d_config: dict, t_config: dict) -> None:
                              c_names_to_display=c_names_to_display)
     
     # Defining model
-    model = model_cls(**model_args)
+    model = model_cls.from_pretrained(**model_args)
     model.to(device)
     
     # Defining weighted loss
@@ -241,40 +241,50 @@ def run_expression_training() -> None:
     d_config = dconf['RAMAS']
 
     m_clses = [
-        AudioModelT1,  AudioModelT2, AudioModelT3, AudioModelT4, AudioModelT5, AudioModelT6,
-        AudioModelM1,  AudioModelM2, AudioModelM3, AudioModelM4, AudioModelM5, AudioModelM6,
-        AudioModelX1,  AudioModelX2, AudioModelX3, AudioModelX4, AudioModelX5, AudioModelX6,
+        Audio2023Model,
+        AudioModelWT,
+        AudioModelWM,
+        AudioModelWX,
     ]
 
     logs_dir = {
-        'T': '/media/maxim/WesternDigital/RAMAS2024/sc_ramas/transformers',
-        'M': '/media/maxim/WesternDigital/RAMAS2024/sc_ramas/mamba',
-        'X': '/media/maxim/WesternDigital/RAMAS2024/sc_ramas/xlstm'
+        'OM': '/media/maxim/WesternDigital/RAMAS2024/sc_ramas/2024_model',
     }
     
-    fe_clses = [ExHuBERTFeatureExtractor]
+    fe_clses = [BaseFeatureExtractor]
     win_params = [
-        {'WIN_MAX_LENGTH': 4, 'WIN_SHIFT': 2}
+        {'WIN_MAX_LENGTH': 4, 'WIN_SHIFT': 2, 'WIN_MIN_LENGTH': 2}
     ]
     
     for win_param in win_params:
         for fe_cls in fe_clses:            
             for m_cls in m_clses:
                 t_config = deepcopy(tconf)
-                t_config['LOGS_ROOT'] = logs_dir[str(m_cls)[-4]]
+                t_config['LOGS_ROOT'] = logs_dir['OM']
                 t_config['AUGMENTATION'] = False
                 
                 t_config['FEATURE_EXTRACTOR']['WIN_MAX_LENGTH'] = win_param['WIN_MAX_LENGTH']
                 t_config['FEATURE_EXTRACTOR']['WIN_SHIFT'] = win_param['WIN_SHIFT']
+                t_config['FEATURE_EXTRACTOR']['WIN_MIN_LENGTH'] = win_param['WIN_MIN_LENGTH']
                 t_config['FEATURE_EXTRACTOR']['cls'] = fe_cls
-                t_config['FEATURE_EXTRACTOR']['args']['win_max_length'] = win_param['WIN_MAX_LENGTH']
+                t_config['FEATURE_EXTRACTOR']['args'] = {}
+
+                t_config['DATA_PREPROCESSOR']['cls'] = Wav2Vec2DataPreprocessor
+                t_config['DATA_PREPROCESSOR']['args'] = {'preprocessor_name': 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'}
                 
                 t_config['MODEL']['cls'] = m_cls
+                model_name = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'
+                model_config = AutoConfig.from_pretrained(model_name)
+
+                model_config.out_emo = len(d_config['C_NAMES']['emo'])
+                model_config.out_sen = len(d_config['C_NAMES']['sen'])
+                model_config.context_length = define_context_length(win_param['WIN_MAX_LENGTH'])
+
                 model_args = AttrDict()
-                model_args.out_emo = len(d_config['C_NAMES']['emo'])
-                model_args.out_sen = len(d_config['C_NAMES']['sen'])
-                model_args.context_length = define_context_length(win_param['WIN_MAX_LENGTH'])
-                t_config['MODEL']['args'] = {'config': model_args}
+                model_args.pretrained_model_name_or_path = model_name
+                model_args.config = model_config
+                
+                t_config['MODEL']['args'] = model_args
     
                 main(d_config=d_config, t_config=t_config)
 

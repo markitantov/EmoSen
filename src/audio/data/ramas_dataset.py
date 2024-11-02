@@ -14,9 +14,9 @@ import torchvision
 
 from torch.utils.data import Dataset
 
-from audio.configs.singlecorpus_config import data_config as conf
+from configs.singlecorpus_config import data_config as conf
 
-from audio.data.common import load_data, save_data, slice_audio, find_intersections, emo_to_label, ohe_sentiment, read_audio, generate_dump_filename
+from common.data.utils import load_data, save_data, slice_audio, find_intersections, emo_to_label, ohe_sentiment, read_audio, generate_dump_filename
 from audio.data.data_preprocessors import BaseDataPreprocessor
 from audio.features.feature_extractors import BaseFeatureExtractor
 
@@ -126,11 +126,11 @@ class RAMASDataset(Dataset):
             
             if self.vad_metadata:
                 vad_info = self.vad_metadata[os.path.basename(sample_fp)]
-                intersections = find_intersections(audio_windows, vad_info)
+                intersections = find_intersections(x=audio_windows, y=vad_info, min_length=int(self.win_min_length * self.sr))
             else:
                 intersections = audio_windows
 
-            for w_idx, window in enumerate(intersections):
+            for w_idx, window in enumerate(intersections):                
                 wave = full_wave[window['start']: window['end']].clone()
                 
                 if self.feature_extractor:

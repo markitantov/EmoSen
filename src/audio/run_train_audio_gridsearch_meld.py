@@ -13,14 +13,14 @@ import pandas as pd
 import torch
 from torchvision import transforms
 
-from audio.configs.singlecorpus_config import data_config as dconf
-from audio.configs.singlecorpus_config import training_config as tconf
+from configs.singlecorpus_config import data_config as dconf
+from configs.singlecorpus_config import training_config as tconf
 
 from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion, WhiteNoise, Gain
 
 from audio.data.meld_dataset import MELDDataset
-from audio.data.grouping import singlecorpus_grouping
-from audio.data.common import define_context_length
+from common.data.grouping import singlecorpus_grouping
+from common.data.utils import define_context_length
 
 from audio.features.feature_extractors import *
 from audio.data.data_preprocessors import *
@@ -29,13 +29,13 @@ from audio.models.audio_transformers_models import *
 from audio.models.audio_xlstm_models import *
 from audio.models.audio_mamba_models import *
 
-from audio.loss.loss import MTLoss
+from common.loss.loss import MTLoss
 
-from audio.utils.accuracy import *
+from common.utils.accuracy import *
 
-from audio.net_trainer.net_trainer import NetTrainer, LabelType
+from common.net_trainer.net_trainer import NetTrainer, LabelType
 
-from audio.utils.common import get_source_code, define_seed, AttrDict
+from common.utils.common import get_source_code, define_seed, AttrDict
   
 
 def main(d_config: dict, t_config: dict) -> None:
@@ -114,7 +114,7 @@ def main(d_config: dict, t_config: dict) -> None:
         metadata_info[ds] = {
             'audio_root': os.path.join(data_root, audio_root, ds_names[ds]),
             'labels': labels[labels['subset'] == ds_names[ds]],
-            'dump_filepath': os.path.join(data_root, 'MELD_{0}_{1}'.format(ds_names[ds].upper(), features_dump_file)),
+            'dump_filepath': 'MELD_{0}_{1}'.format(ds_names[ds].upper(), features_dump_file),
             'vad_metadata': vad_metadata
         }
 
@@ -250,14 +250,14 @@ def run_expression_training() -> None:
     ]
 
     logs_dir = {
-        'T': '/media/maxim/WesternDigital/RAMAS2024/sc_meldtest/transformers',
-        'M': '/media/maxim/WesternDigital/RAMAS2024/sc_meldtest/mamba',
-        'X': '/media/maxim/WesternDigital/RAMAS2024/sc_meldtest/xlstm'
+        'T': '/media/maxim/WesternDigital/RAMAS2024/sc_meld/transformers',
+        'M': '/media/maxim/WesternDigital/RAMAS2024/sc_meld/mamba',
+        'X': '/media/maxim/WesternDigital/RAMAS2024/sc_meld/xlstm'
     }
     
     fe_clses = [ExHuBERTFeatureExtractor]
     win_params = [
-        {'WIN_MAX_LENGTH': 4, 'WIN_SHIFT': 2}
+        {'WIN_MAX_LENGTH': 4, 'WIN_SHIFT': 2, 'WIN_MIN_LENGTH': 2}
     ]
     
     for win_param in win_params:
@@ -269,6 +269,7 @@ def run_expression_training() -> None:
                 
                 t_config['FEATURE_EXTRACTOR']['WIN_MAX_LENGTH'] = win_param['WIN_MAX_LENGTH']
                 t_config['FEATURE_EXTRACTOR']['WIN_SHIFT'] = win_param['WIN_SHIFT']
+                t_config['FEATURE_EXTRACTOR']['WIN_MIN_LENGTH'] = win_param['WIN_MIN_LENGTH']
                 t_config['FEATURE_EXTRACTOR']['cls'] = fe_cls
                 t_config['FEATURE_EXTRACTOR']['args']['win_max_length'] = win_param['WIN_MAX_LENGTH']
                 

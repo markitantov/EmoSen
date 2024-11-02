@@ -14,14 +14,14 @@ import pandas as pd
 import torch
 from torchvision import transforms
 
-from audio.configs.singlecorpus_config import data_config as dconf
-from audio.configs.singlecorpus_config import training_config as tconf
+from configs.singlecorpus_config import data_config as dconf
+from configs.singlecorpus_config import training_config as tconf
 
 from audio.augmentation.wave_augmentation import RandomChoice, PolarityInversion, WhiteNoise, Gain
 
 from audio.data.cmumosei_dataset import CMUMOSEIDataset
-from audio.data.grouping import singlecorpus_grouping
-from audio.data.common import define_context_length
+from common.data.grouping import singlecorpus_grouping
+from common.data.utils import define_context_length
 
 from audio.features.feature_extractors import *
 from audio.data.data_preprocessors import *
@@ -30,13 +30,13 @@ from audio.models.audio_transformers_models import *
 from audio.models.audio_xlstm_models import *
 from audio.models.audio_mamba_models import *
 
-from audio.loss.loss import MLMTLoss
+from common.loss.loss import MLMTLoss
 
-from audio.utils.accuracy import *
+from common.utils.accuracy import *
 
-from audio.net_trainer.net_trainer import NetTrainer, LabelType
+from common.net_trainer.net_trainer import NetTrainer, LabelType
 
-from audio.utils.common import get_source_code, define_seed
+from common.utils.common import get_source_code, define_seed, AttrDict
   
 
 def main(d_config: dict, t_config: dict) -> None:
@@ -113,7 +113,7 @@ def main(d_config: dict, t_config: dict) -> None:
     for ds in ds_names:
         metadata_info[ds] = {
             'labels': labels[labels['subset'] == ds_names[ds]],
-            'dump_filepath': os.path.join(data_root, 'CMUMOSEI_{0}_{1}'.format(ds_names[ds].upper(), features_dump_file)),
+            'dump_filepath': 'CMUMOSEI_{0}_{1}'.format(ds_names[ds].upper(), features_dump_file),
         }
 
         if 'train' in ds:
@@ -235,27 +235,6 @@ def main(d_config: dict, t_config: dict) -> None:
         print([metric for metric in max_perf[phase]['performance']])
         print([max_perf[phase]['performance'][metric] for metric in max_perf[phase]['performance']])
         print()
-
-    del model
-    del scheduler
-    del optimizer
-    del loss
-    del class_sample_count
-    del net_trainer
-    del measures
-    del dataloaders
-    del datasets_stats
-    del datasets    
-    del data_preprocessor
-    del feature_extractor
-    del all_transforms
-    del metadata_info
-    del vad_metadata
-    del labels
-    del c_names_to_display
-    del source_code
-
-    gc.collect()
     
 
 def run_expression_training() -> None:
@@ -277,7 +256,7 @@ def run_expression_training() -> None:
     
     fe_clses = [ExHuBERTFeatureExtractor]
     win_params = [
-        {'WIN_MAX_LENGTH': 4, 'WIN_SHIFT': 2}
+        {'WIN_MAX_LENGTH': 4, 'WIN_SHIFT': 2, 'WIN_MIN_LENGTH': 2}
     ]
     
     for win_param in win_params:
@@ -289,6 +268,7 @@ def run_expression_training() -> None:
                 
                 t_config['FEATURE_EXTRACTOR']['WIN_MAX_LENGTH'] = win_param['WIN_MAX_LENGTH']
                 t_config['FEATURE_EXTRACTOR']['WIN_SHIFT'] = win_param['WIN_SHIFT']
+                t_config['FEATURE_EXTRACTOR']['WIN_MIN_LENGTH'] = win_param['WIN_MIN_LENGTH']
                 t_config['FEATURE_EXTRACTOR']['cls'] = fe_cls
                 t_config['FEATURE_EXTRACTOR']['args']['win_max_length'] = win_param['WIN_MAX_LENGTH']
                 

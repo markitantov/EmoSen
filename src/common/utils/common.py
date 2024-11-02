@@ -28,10 +28,10 @@ def define_seed(seed: int = 12) -> None:
     
     
 def wait_for_it(time_left: int) -> None:
-    """Wait time in sec. before run the following statement
+    """Wait time in minutes. before run the following statement
 
     Args:
-        time_left (int): time in seconds
+        time_left (int): time in minutes
     """
     t = time_left
     while t > 0:

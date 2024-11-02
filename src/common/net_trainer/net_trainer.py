@@ -10,8 +10,8 @@ import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-from audio.visualization.visualize import conf_matrix, plot_conf_matrix
-from audio.utils.common import create_logger
+from common.visualization.visualize import conf_matrix, plot_conf_matrix
+from common.utils.common import create_logger
 
 
 class LabelType(Enum):
@@ -187,7 +187,7 @@ class NetTrainer:
                 for db, vs in joint_info.items():
                     targets, predicts, sample_info = vs                     
                     
-                    performance = self.calc_metrics(targets, predicts, sample_info)
+                    performance = self.calc_metrics(targets, predicts, sample_info, db)
                                 
                     d_epoch_stats['{}_loss'.format(phase)] = epoch_loss
                     summary[phase].add_scalar('loss', epoch_loss, epoch)
@@ -195,7 +195,7 @@ class NetTrainer:
                     epoch_score = performance[main_measure_name]
                     for measure in performance:
                         summary[phase].add_scalar(measure, performance[measure], epoch)                    
-                        d_epoch_stats['{}_{}'.format(phase, measure)] = performance[measure]
+                        d_epoch_stats['{}_{}_{}'.format(db, phase.split('_')[0], measure)] = performance[measure]
                 
                     is_max_performance = (
                             ((('test' in phase) or ('devel' in phase)) and (epoch_score > max_perf[phase]['performance'][main_measure_name])) or
@@ -207,7 +207,7 @@ class NetTrainer:
                             max_perf[phase]['epoch'] = epoch
                     
                         self.draw_confusion_matrix(targets=targets, predicts=predicts, 
-                                                   epoch=epoch, phase=phase, 
+                                                   epoch=epoch, db=db, phase=phase, 
                                                    main_measure_name=main_measure_name, epoch_score=epoch_score)
                     
                         model.cpu()
@@ -220,7 +220,7 @@ class NetTrainer:
                     
                         model.to(self.device)
                 
-                    if ('devel' in phase) and (epoch == max_perf['devel']['epoch']) and ('test' in phase):
+                    if ('devel' in phase) and (epoch == max_perf[phase]['epoch']) and ('test' in phase): # TODO
                         self.draw_confusion_matrix(targets=targets, predicts=predicts, 
                                                    epoch=epoch, phase=phase, 
                                                    main_measure_name=main_measure_name, epoch_score=epoch_score)
@@ -344,6 +344,7 @@ class NetTrainer:
                               targets: list[np.ndarray], 
                               predicts: list[np.ndarray], 
                               epoch: int, 
+                              db: str, 
                               phase: str, 
                               main_measure_name: str, 
                               epoch_score: float):
@@ -353,31 +354,33 @@ class NetTrainer:
             targets (list[np.ndarray]): List of targets
             predicts (list[np.ndarray]): List of predicts
             epoch (int): Number of epoch
+            db (str): Name of corpus
             phase (str): Name of phase: could be train, devel(valid), test
             main_measure_name (str): Name of measure
             epoch_score (float): Score of performance measure
         """
         for task in ['emo', 'sen']:
-            if self.label_type == LabelType.MULTILABEL and 'emo' in task:
+            if ((self.label_type == LabelType.MULTILABEL) and ('emo' in task)) or ('CMUMOSEI' in db):
                 continue
                         
-        cm = conf_matrix(targets[task], predicts[task], [i for i in range(len(self.c_names[task]))])
-        res_name = 'epoch_{0}_{1}_{2}_{3:.3f}'.format(epoch, task, phase, epoch_score)
-        confusion_matrix_title = '{0}. {1}. {2} = {3:.3f}%'.format(task.replace('emo', 'Emotion').replace('sen', 'Sentiment'), 
-                                                                   phase.capitalize(), 
-                                                                   str(main_measure_name),
-                                                                   epoch_score)
-        plot_conf_matrix(cm, 
-                         labels=self.c_names_to_display[task] if self.c_names_to_display[task] else self.c_names[task],
-                         xticks_rotation=45,
-                         title=confusion_matrix_title,
-                         save_path=os.path.join(self.logging_paths['model_path'], '{0}.svg'.format(res_name)))
+            cm = conf_matrix(targets[task], predicts[task], [i for i in range(len(self.c_names[task]))])
+            res_name = 'epoch_{0}_{1}_{2}_{3}_{4:.3f}'.format(epoch, db, task, phase, epoch_score)
+            confusion_matrix_title = '{0}. {1}. {2} = {3:.3f}%'.format(task.replace('emo', 'Emotion').replace('sen', 'Sentiment'), 
+                                                                       phase.capitalize(), 
+                                                                       str(main_measure_name),
+                                                                       epoch_score)
+            plot_conf_matrix(cm, 
+                             labels=self.c_names_to_display[task] if self.c_names_to_display[task] else self.c_names[task],
+                             xticks_rotation=45,
+                             title=confusion_matrix_title,
+                             save_path=os.path.join(self.logging_paths['model_path'], '{0}.svg'.format(res_name)))
 
 
     def calc_metrics(self, 
                      targets: list[np.ndarray], 
                      predicts: list[np.ndarray], 
                      filenames: list[str],
+                     db: str = None,
                      verbose: bool = True) -> dict[float]:
         """Calculates each performance measure from `self.measures`
 
@@ -385,13 +388,20 @@ class NetTrainer:
             targets (list[np.ndarray]): List of targets
             predicts (list[np.ndarray]): List of predicts
             filenames (list[str]): List of filenames
+            db (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
             verbose (bool, optional): Detailed output of each performance measure. Defaults to True.
 
         Returns:
             dict[float]: Return dictionary [str(measure)] = value
         """
         performance = {}
+        if verbose:
+            self.logger.info('Performance measures for {0} corpus:'.format(db))
+
         for measure in self.measures:
+            if (measure.protection is not None) and (db not in measure.protection): # Check if is protected measure with specific corpus
+                continue
+
             if '_m' in str(measure):
                 # mWA, mWF1, mMacroF1, mUAR
                 performance[str(measure)] = measure.calc(targets['emo'], predicts['emo'])

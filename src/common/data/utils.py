@@ -146,12 +146,13 @@ def load_data(filename: str) -> any:
     return data
 
 
-def find_intersections(x: list[dict], y: list[dict]) -> list[dict]:
+def find_intersections(x: list[dict], y: list[dict], min_length: float = 0) -> list[dict]:
     """Find intersections of two lists of dicts with intervals
 
     Args:
         x (list[dict]): First list
         y (list[dict]): Second list
+        min_length (float, optional): Minimum length of intersection. Defaults to 0.
 
     Returns:
         list[dict]: Windows with VAD intersection
@@ -170,7 +171,8 @@ def find_intersections(x: list[dict], y: list[dict]) -> list[dict]:
         r = min(x[i]['end'], y[j]['end'])
 
         if l <= r: # If segment is valid 
-            timings.append({'start': l, 'end': r})
+            if r - l >= min_length: # if length of intersection not less then `min_length` seconds
+                timings.append({'start': l, 'end': r})
          
         # If i-th interval's right bound is 
         # smaller increment i else increment j
@@ -253,4 +255,4 @@ def define_context_length(win_max_length: int = 4) -> int:
 
 
 if __name__ == "__main__":
-    print(slice_audio(12, 6.1, 4, 2, 2))
+    print(slice_audio(125.701, 137.617, 4, 2, 2))

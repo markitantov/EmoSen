@@ -15,10 +15,9 @@ from xlstm import (
     FeedForwardConfig,
 )
 
-from audio.models.common import ClassificationHead, SmallClassificationHead
-from audio.utils.common import AttrDict
-
-from audio.data.common import define_context_length
+from common.models.common import ClassificationHead, SmallClassificationHead
+from common.utils.common import AttrDict
+from common.data.utils import define_context_length
 
 class AudioModelX1(nn.Module):
     def __init__(self, config) -> None:

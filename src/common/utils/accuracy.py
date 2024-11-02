@@ -7,9 +7,11 @@ class MeanWeightedAccuracyMeasure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'mWA') -> None:
+    def __init__(self, name: str = 'mWA', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         self.wa_scores = []
         
     def cmu_accuracy(self, 
@@ -44,8 +46,8 @@ class MeanWeightedAccuracyMeasure:
         Returns:
             float: mWA value
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
+        targets = np.array(targets).astype(int)
+        predicts = np.array(predicts).astype(int)
         self.wa_scores = []
         for i in range(0, predicts.shape[1]):
             self.wa_scores.append(self.cmu_accuracy(targets[:, i], predicts[:, i]) * 100)
@@ -74,9 +76,11 @@ class MeanWeightedF1Measure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'mWF1') -> None:
+    def __init__(self, name: str = 'mWF1', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         self.f1_weighted_scores = []
     
     def calc(self, targets: list[np.ndarray] | np.ndarray, predicts: list[np.ndarray] | np.ndarray) -> float:
@@ -89,8 +93,8 @@ class MeanWeightedF1Measure:
         Returns:
             float: mWF1 value
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
+        targets = np.array(targets).astype(int)
+        predicts = np.array(predicts).astype(int)
 
         self.f1_weighted_scores = []
         for i in range(0, predicts.shape[1]):
@@ -121,9 +125,11 @@ class MeanMacroF1Measure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'mMacroF1') -> None:
+    def __init__(self, name: str = 'mMacroF1', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         self.f1_macro_scores = []
     
     def calc(self, targets: list[np.ndarray] | np.ndarray, predicts: list[np.ndarray] | np.ndarray) -> float:
@@ -136,8 +142,8 @@ class MeanMacroF1Measure:
         Returns:
             float: mMacroF1 value
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
+        targets = np.array(targets).astype(int)
+        predicts = np.array(predicts).astype(int)
 
         self.f1_macro_scores = []
         for i in range(0, predicts.shape[1]):
@@ -168,9 +174,11 @@ class MeanUARMeasure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'mUAR') -> None:
+    def __init__(self, name: str = 'mUAR', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         self.uar = []
     
     def calc(self, targets: list[np.ndarray] | np.ndarray, predicts: list[np.ndarray] | np.ndarray) -> float:
@@ -183,8 +191,8 @@ class MeanUARMeasure:
         Returns:
             float: mUAR value
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
+        targets = np.array(targets).astype(int)
+        predicts = np.array(predicts).astype(int)
 
         self.uar = []
         for i in range(0, predicts.shape[1]):
@@ -216,9 +224,11 @@ class MeanWARMeasure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'mA(WAR)') -> None:
+    def __init__(self, name: str = 'mA(WAR)', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         self.acc = []
     
     def calc(self, targets: list[np.ndarray] | np.ndarray, predicts: list[np.ndarray] | np.ndarray) -> float:
@@ -231,8 +241,8 @@ class MeanWARMeasure:
         Returns:
             float: mA(WAR) value
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
+        targets = np.array(targets).astype(int)
+        predicts = np.array(predicts).astype(int)
 
         self.acc = []
         for i in range(0, predicts.shape[1]):
@@ -266,9 +276,11 @@ class WARMeasure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'A(WAR)') -> None:
+    def __init__(self, name: str = 'A(WAR)', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         pass
     
     def calc(self, targets: list[np.ndarray] | np.ndarray, predicts: list[np.ndarray] | np.ndarray) -> float:
@@ -281,8 +293,8 @@ class WARMeasure:
         Returns:
             float: A(WAR) value
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
+        targets = np.array(targets).astype(int)
+        predicts = np.array(predicts).astype(int)
         cr = metrics.classification_report(targets, predicts, output_dict=True, zero_division=0)
         return cr['weighted avg']['recall'] * 100
     
@@ -303,9 +315,11 @@ class UARMeasure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'UAR') -> None:
+    def __init__(self, name: str = 'UAR', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         pass
     
     def calc(self, targets: list[np.ndarray] | np.ndarray, predicts: list[np.ndarray] | np.ndarray) -> float:
@@ -318,8 +332,8 @@ class UARMeasure:
         Returns:
             float: UAR value
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
+        targets = np.array(targets).astype(int)
+        predicts = np.array(predicts).astype(int)
         cr = metrics.classification_report(targets, predicts, output_dict=True, zero_division=0)
         return cr['macro avg']['recall'] * 100
     
@@ -340,9 +354,11 @@ class WeightedF1Measure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'WF1') -> None:
+    def __init__(self, name: str = 'WF1', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         pass
     
     def calc(self, targets: list[np.ndarray] | np.ndarray, predicts: list[np.ndarray] | np.ndarray) -> float:
@@ -355,8 +371,8 @@ class WeightedF1Measure:
         Returns:
             float: WF1 value
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
+        targets = np.array(targets).astype(int)
+        predicts = np.array(predicts).astype(int)
         cr = metrics.classification_report(targets, predicts, output_dict=True, zero_division=0)
         return cr['weighted avg']['f1-score'] * 100
     
@@ -377,9 +393,11 @@ class MacroF1Measure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'MacroF1') -> None:
+    def __init__(self, name: str = 'MacroF1', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         pass
     
     def calc(self, targets: list[np.ndarray] | np.ndarray, predicts: list[np.ndarray] | np.ndarray) -> float:
@@ -392,8 +410,8 @@ class MacroF1Measure:
         Returns:
             float: MacroF1 value
         """
-        targets = np.array(targets)
-        predicts = np.array(predicts)
+        targets = np.array(targets).astype(int)
+        predicts = np.array(predicts).astype(int)
         cr = metrics.classification_report(targets, predicts, output_dict=True, zero_division=0)
         return cr['macro avg']['f1-score'] * 100
     
@@ -411,10 +429,13 @@ class MultilabelEmoSenCombinedMeasure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'MultilabelEmoSenCombined') -> None:
+    def __init__(self, name: str = 'MultilabelEmoSenCombined', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         self.emo_m_macro_f1 = MeanMacroF1Measure()
+        self.emo_macro_f1 = MacroF1Measure()
         self.sen_macro_f1 = MacroF1Measure()
            
     def calc(self, targets: dict[list[np.ndarray]] | dict[np.ndarray], predicts: dict[list[np.ndarray]] | dict[np.ndarray]) -> float:
@@ -427,7 +448,11 @@ class MultilabelEmoSenCombinedMeasure:
         Returns:
             float: mean of meanMacroF1 and MacroF1
         """
-        emo_performance = self.emo_m_macro_f1.calc(targets['emo'], predicts['emo'])
+        if isinstance(targets['emo'][1], int):
+            emo_performance = self.emo_macro_f1.calc(targets['emo'], predicts['emo'])
+        else:
+            emo_performance = self.emo_m_macro_f1.calc(targets['emo'], predicts['emo'])
+            
         sen_performance = self.sen_macro_f1.calc(targets['sen'], predicts['sen'])
         return (emo_performance + sen_performance) / 2      
     
@@ -445,9 +470,11 @@ class EmoSenCombinedMeasure:
     
     Args:
         name (str, optional): Performance measure name
+        protection (str, optional): Allows you to calculate performance measure only for a specific corpus. Defaults to None.
     """
-    def __init__(self, name: str = 'EmoSenCombined') -> None:
+    def __init__(self, name: str = 'EmoSenCombined', protection: str = None) -> None:
         self.name = name
+        self.protection = protection
         self.emo_macro_f1 = MacroF1Measure()
         self.sen_macro_f1 = MacroF1Measure()
            

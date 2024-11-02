@@ -7,10 +7,10 @@ import torch.nn as nn
 
 from mamba_ssm.modules.mamba2 import Mamba2
 
-from audio.models.common import ClassificationHead, SmallClassificationHead
-from audio.utils.common import AttrDict
+from common.models.common import ClassificationHead, SmallClassificationHead
 
-from audio.data.common import define_context_length
+from common.utils.common import AttrDict
+from common.data.utils import define_context_length
 
 class AudioModelM1(nn.Module):
     def __init__(self, config) -> None:
