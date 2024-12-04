@@ -15,8 +15,8 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 
-from configs.multimodal_config import data_config as dconf
-from configs.multimodal_config import training_config as tconf
+from configs.multimodal_config_mean import data_config as dconf
+from configs.multimodal_config_mean import training_config as tconf
 
 from audio.features.feature_extractors import AudioFeatureExtractor
 
@@ -29,7 +29,7 @@ from common.utils.common import get_source_code, define_seed, AttrDict
 
 from fusion.data.multimodal_features_dataset import MultimodalFeaturesDataset
 from fusion.augmentation.modality_augmentation import ModalityDropAugmentation
-from fusion.models.multimodal_models_v3 import *
+from fusion.models.multimodal_models_mean import *
 
 
 def main(d_config: dict, t_config: dict) -> None:
@@ -164,7 +164,7 @@ def main(d_config: dict, t_config: dict) -> None:
                     labels_metadata=metadata_info[corpus_name][ds]['labels_metadata'], 
                     features_root=features_root, features_file_name=metadata_info[corpus_name][ds]['features_file_name'],
                     vad_metadata=metadata_info[corpus_name][ds]['vad_metadata'],
-                    corpus_name=corpus_name, include_neutral=include_neutral, load_in_ram=False if corpus_name in ['MELD', 'RAMAS'] else True,
+                    corpus_name=corpus_name, include_neutral=include_neutral, load_in_ram=True,
                     sr=sr, win_max_length=win_max_length, win_shift=win_shift, win_min_length=win_min_length,
                     feature_extractor=feature_extractor,
                     transform=all_transforms[ds])
@@ -296,7 +296,16 @@ def run_expression_training() -> None:
     """
     d_config = dconf
 
-    m_clses = [AttentionFusionDF, AttentionFusionTF, LabelEncoderFusionDF, LabelEncoderFusionTF, LabelToEmoSenFusionDF, LabelToEmoSenFusionTF]
+    m_clses = [
+        AttentionFusionDFAV, 
+        AttentionFusionDFAT, 
+        AttentionFusionDFVT,
+        LabelEncoderFusionDFAV, 
+        LabelEncoderFusionDFAT, 
+        LabelEncoderFusionDFVT,
+        AttentionFusionTF, 
+        LabelEncoderFusionTF
+    ]
         
     for augmentation in [False]:
         for m_cls in m_clses:
@@ -313,7 +322,7 @@ def run_expression_training() -> None:
             }
             
             t_config['AUGMENTATION'] = augmentation
-                
+            
             main(d_config=d_config, t_config=t_config)
 
     

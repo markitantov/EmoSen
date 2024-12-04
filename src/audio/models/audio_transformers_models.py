@@ -15,7 +15,7 @@ from xlstm import (
     FeedForwardConfig,
 )
 
-from common.models.common import TransformerLayer, ClassificationHead, SmallClassificationHead
+from common.models.common_layers import TransformerLayer, ClassificationHead, SmallClassificationHead
 from common.utils.common import AttrDict
 from common.data.utils import define_context_length
 

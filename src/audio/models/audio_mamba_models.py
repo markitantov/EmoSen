@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from mamba_ssm.modules.mamba2 import Mamba2
 
-from common.models.common import ClassificationHead, SmallClassificationHead
+from common.models.common_layers import ClassificationHead, SmallClassificationHead
 
 from common.utils.common import AttrDict
 from common.data.utils import define_context_length

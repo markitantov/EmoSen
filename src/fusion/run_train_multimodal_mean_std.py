@@ -15,8 +15,8 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 
-from configs.multimodal_config import data_config as dconf
-from configs.multimodal_config import training_config as tconf
+from configs.multimodal_config_mean_std import data_config as dconf
+from configs.multimodal_config_mean_std import training_config as tconf
 
 from audio.features.feature_extractors import AudioFeatureExtractor
 
@@ -29,7 +29,7 @@ from common.utils.common import get_source_code, define_seed, AttrDict
 
 from fusion.data.multimodal_features_dataset import MultimodalFeaturesDataset
 from fusion.augmentation.modality_augmentation import ModalityDropAugmentation
-from fusion.models.multimodal_models_v3 import *
+from fusion.models.multimodal_models_mean_std import *
 
 
 def main(d_config: dict, t_config: dict) -> None:
@@ -296,7 +296,16 @@ def run_expression_training() -> None:
     """
     d_config = dconf
 
-    m_clses = [AttentionFusionDF, AttentionFusionTF, LabelEncoderFusionDF, LabelEncoderFusionTF, LabelToEmoSenFusionDF, LabelToEmoSenFusionTF]
+    m_clses = [
+        AttentionFusionDFAV, 
+        AttentionFusionDFAT, 
+        AttentionFusionDFVT,
+        LabelEncoderFusionDFAV, 
+        LabelEncoderFusionDFAT, 
+        LabelEncoderFusionDFVT,
+        AttentionFusionTF, 
+        LabelEncoderFusionTF
+    ]
         
     for augmentation in [False]:
         for m_cls in m_clses:

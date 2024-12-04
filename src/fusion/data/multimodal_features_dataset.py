@@ -13,6 +13,7 @@ import torch
 import torchvision
 
 from torch.utils.data import Dataset
+import torch.nn.functional as F
 
 from configs.singlecorpus_config import data_config as conf
 
@@ -23,7 +24,7 @@ from audio.features.feature_extractors import BaseFeatureExtractor, AudioFeature
 class MultimodalFeaturesDataset(Dataset):
     def __init__(self, audio_root: str, labels_metadata: pd.DataFrame, 
                  features_root: str, features_file_name: str,
-                 corpus_name: str, include_neutral: bool = False,
+                 corpus_name: str, include_neutral: bool = False, load_in_ram: bool = False,
                  vad_metadata: dict[list] = None,
                  sr: int = 16000, win_max_length: int = 4, win_shift: int = 2, win_min_length: int = 4,
                  feature_extractor: BaseFeatureExtractor = None,
@@ -34,6 +35,7 @@ class MultimodalFeaturesDataset(Dataset):
         
         self.corpus_name = corpus_name
         self.include_neutral = include_neutral
+        self.load_in_ram = load_in_ram
         
         self.sr = sr
         self.win_max_length = win_max_length
@@ -190,21 +192,27 @@ class MultimodalFeaturesDataset(Dataset):
         }
         
         new_info = []
-        for sample_info in info:                        
+        for sample_info in tqdm(info):                        
             sample_emo = emo_to_label(sample_info['t_emo'], include_neutral)
             sample_sen = ohe_sentiment(sample_info['t_sen'])
-           
-            new_info.append({
+            
+            if self.load_in_ram:
+                features_preds = self.load_avt_features(sample_info['fn'], sample_info['w_idx']) 
+            else:
+                features_preds = {'{0}_{1}'.format(m, f): None for m in ['a', 'v', 't'] for f in ['p_emo', 'p_sen', 'features']}
+            
+            s_info = {
                 'fp': sample_info['fp'],
                 'fn': sample_info['fn'],
                 'w_idx': sample_info['w_idx'],
                 'start': sample_info['start'],
                 'end': sample_info['end'],
                 't_emo': sample_emo,
-                't_sen': sample_sen,
-                'p_emo': sample_info['p_emo'],
-                'p_sen': sample_info['p_sen'],
-            })
+                't_sen': sample_sen
+            }
+
+            s_info.update(features_preds)            
+            new_info.append(s_info)
             
             stats['fns'][sample_info['fn']] = {
                 'emo_7': np.asarray(emo_to_label(sample_info['t_emo'], True)),
@@ -220,6 +228,62 @@ class MultimodalFeaturesDataset(Dataset):
         stats['majority_class']['emo_6'] = int(np.argmax(stats['counts']['emo_6']))
         stats['majority_class']['sen_3'] = int(np.argmax(stats['counts']['sen_3']))        
         return new_info, stats
+    
+    def load_avt_features(self, filename: str, window_idx: int) -> dict:
+        """ Loads features and predicts
+        """
+        res = {}
+        if os.path.exists(os.path.join(self.full_features_path, filename.replace('.wav', '_{0}.dat'.format(window_idx)))):
+            a_data = load_data(os.path.join(self.full_features_path, 
+                                            filename.replace('.wav', '_{0}.dat'.format(window_idx))))
+            
+            res.update({'a_{0}'.format(key.replace('predict', 'p')): torch.FloatTensor(a_data[key]) for key in ['predict_emo', 
+                                                                                                             'predict_sen', 
+                                                                                                             'features']})
+        else:
+            res.update({
+                'a_p_emo': torch.zeros(7 if self.include_neutral else 6), 
+                # 'a_p_emo': torch.zeros(14 if self.include_neutral else 12), 
+                'a_p_sen': torch.zeros(3),
+                # 'a_p_sen': torch.zeros(6),
+                'a_features': torch.zeros(199, 1024)
+                # 'a_features': torch.zeros(199, 2048)
+            })
+
+        if os.path.exists(os.path.join(self.full_features_path.replace('_a', '_v'), 
+                                       filename.replace('.wav', '_{0}.dat'.format(window_idx)))):
+            v_data = load_data(os.path.join(self.full_features_path.replace('_a', '_v'), 
+                                            filename.replace('.wav', '_{0}.dat'.format(window_idx))))
+            
+            res.update({'v_{0}'.format(key.replace('predict', 'p')): torch.FloatTensor(v_data[key]) for key in ['predict_emo', 
+                                                                                                             'predict_sen', 
+                                                                                                             'features']})
+        else:
+            res.update({
+                'v_p_emo': torch.zeros(7 if self.include_neutral else 6), 
+                # 'v_p_emo': torch.zeros(14 if self.include_neutral else 12), 
+                'v_p_sen': torch.zeros(3),
+                # 'v_p_sen': torch.zeros(6),
+                'v_features': torch.zeros(20, 512)
+                # 'v_features': torch.zeros(20, 1024)
+            })
+
+        if os.path.exists(os.path.join(self.full_features_path.replace('_a', '_t'), 
+                                       filename.replace('.wav', '_{0}.dat'.format(window_idx)))):
+            t_data = load_data(os.path.join(self.full_features_path.replace('_a', '_t'), 
+                                            filename.replace('.wav', '_{0}.dat'.format(window_idx))))
+            
+            res.update({'t_{0}'.format(key.replace('predict', 'p')): torch.FloatTensor(t_data[key]) for key in ['predict_emo', 
+                                                                                                             'predict_sen', 
+                                                                                                             'features']})
+        else:
+            res.update({
+                't_p_emo': torch.zeros(7 if self.include_neutral else 6), 
+                't_p_sen': torch.zeros(3),
+                't_features': torch.zeros(32, 1024)
+            })
+        
+        return res
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, dict[torch.Tensor], dict]:
         """Gets sample from dataset:
@@ -235,23 +299,20 @@ class MultimodalFeaturesDataset(Dataset):
         """
         data = self.info[index]
                     
-        if os.path.exists(os.path.join(self.full_features_path, data['fn'].replace('.wav', '_{0}.dat'.format(data['w_idx'])))):
-            a_data = load_data(os.path.join(self.full_features_path, data['fn'].replace('.wav', '_{0}.dat'.format(data['w_idx']))))
+        if not self.load_in_ram:
+            features_preds = self.load_avt_features(data['fn'], data['w_idx'])
+            a_data, v_data, t_data = features_preds['a_features'], features_preds['v_features'], features_preds['t_features']
+            a_p = torch.cat((features_preds['a_p_emo'], features_preds['a_p_sen']))
+            v_p = torch.cat((features_preds['v_p_emo'], features_preds['v_p_sen']))
+            t_p = torch.cat((features_preds['t_p_emo'], features_preds['t_p_sen']))
         else:
-            a_data = torch.zeros(199, 1024)
-
-        if os.path.exists(os.path.join(self.full_features_path.replace('_a', '_v'), data['fn'].replace('.wav', '_{0}.dat'.format(data['w_idx'])))):
-            v_data = torch.FloatTensor(load_data(os.path.join(self.full_features_path.replace('_a', '_v'), data['fn'].replace('.wav', '_{0}.dat'.format(data['w_idx'])))))
-        else:
-            v_data = torch.zeros(20, 512)
-
-        if os.path.exists(os.path.join(self.full_features_path.replace('_a', '_t'), data['fn'].replace('.wav', '_{0}.dat'.format(data['w_idx'])))):
-            t_data = torch.FloatTensor(load_data(os.path.join(self.full_features_path.replace('_a', '_t'), data['fn'].replace('.wav', '_{0}.dat'.format(data['w_idx'])))))
-        else:
-            t_data = torch.zeros(20, 512) # TODO
+            a_data, v_data, t_data = data['a_features'], data['v_features'], data['t_features']
+            a_p = torch.cat((data['a_p_emo'], data['a_p_sen']))
+            v_p = torch.cat((data['v_p_emo'], data['v_p_sen']))
+            t_p = torch.cat((data['t_p_emo'], data['t_p_sen']))
 
         if self.transform:
-            a_data, v_data, t_data = self.transform(a_data, v_data, t_data)
+            a_data, v_data, t_data = self.transform((a_data, v_data, t_data))
 
         # OHE
         emo_values = data['t_emo']
@@ -267,7 +328,13 @@ class MultimodalFeaturesDataset(Dataset):
         }
 
         y = {'emo': torch.FloatTensor(emo_values), 'sen': torch.FloatTensor(sen_values)}
-        return [torch.FloatTensor(a_data), torch.FloatTensor(v_data), torch.FloatTensor(t_data)], y, [sample_info]
+        return [torch.FloatTensor(a_data), 
+                torch.FloatTensor(v_data), 
+                torch.FloatTensor(t_data), 
+                torch.FloatTensor(a_p),
+                torch.FloatTensor(v_p),
+                torch.FloatTensor(t_p)
+                ], y, [sample_info]
 
     def __len__(self) -> int:
         """Returns number of all samples in dataset

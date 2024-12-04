@@ -9,7 +9,7 @@ from transformers.models.wav2vec2.modeling_wav2vec2 import (
     Wav2Vec2PreTrainedModel,
 )
 
-from common.models.common import SmallClassificationHead, TransformerLayer
+from common.models.common_layers import SmallClassificationHead, TransformerLayer
 
 
 class AudioModelWT(Wav2Vec2PreTrainedModel):

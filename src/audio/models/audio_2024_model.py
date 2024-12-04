@@ -16,7 +16,7 @@ from mamba_ssm.modules.mamba2 import Mamba2
 from common.utils.common import AttrDict
 from common.data.utils import define_context_length
 
-from common.models.common import SmallClassificationHead, TransformerLayer
+from common.models.common_layers import SmallClassificationHead, TransformerLayer
 
 from xlstm import (
     xLSTMBlockStack,

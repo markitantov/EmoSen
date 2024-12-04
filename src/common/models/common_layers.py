@@ -229,6 +229,26 @@ class ClassificationHead(nn.Module):
         x_sen = self.fc_sen2(x_sen)
         return {'emo': x_emo, 'sen': x_sen}
     
+
+class PermuteLayer(nn.Module):
+    def __init__(self, dims: tuple[int, ...]) -> None:
+        super(PermuteLayer, self).__init__()
+        self.dims = dims
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x.permute(*self.dims)
+    
+
+class StatPoolLayer(torch.nn.Module):
+    def __init__(self, dim):
+        super(StatPoolLayer, self).__init__()
+        self.dim = dim
+
+    def forward(self, x):
+        mean = x.mean(dim=self.dim)
+        std = x.std(dim=self.dim)
+        return torch.cat([mean, std], dim=-1)
+
     
 class SmallClassificationHead(nn.Module):
     """ClassificationHead"""

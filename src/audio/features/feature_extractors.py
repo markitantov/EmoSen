@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from transformers import AutoConfig, AutoModelForAudioClassification, Wav2Vec2FeatureExtractor, Wav2Vec2Processor
 
-from data.data_preprocessors import Wav2Vec2DataPreprocessor
+from audio.data.data_preprocessors import Wav2Vec2DataPreprocessor
 from common.data.utils import define_context_length
 
 

@@ -28,11 +28,11 @@ from common.net_trainer.net_trainer_v2 import NetTrainer, LabelType
 from common.utils.common import get_source_code, define_seed, AttrDict
 
 from fusion.data.multimodal_features_dataset import MultimodalFeaturesDataset
-from fusion.augmentation.modality_augmentation import ModalityDropAugmentation
-from fusion.models.multimodal_models_v3 import *
+from fusion.augmentation.modality_augmentation import ModalityRemover
+from fusion.models.multimodal_models import *
 
 
-def main(d_config: dict, t_config: dict) -> None:
+def main(d_config: dict, t_config: dict, used_modalities: str) -> None:
     """Trains with configuration in the following steps:
     - Defines datasets names
     - Defines data augmentations
@@ -105,10 +105,10 @@ def main(d_config: dict, t_config: dict) -> None:
     for ds in ds_names['CMUMOSEI']:
         if 'train' in ds:
             all_transforms[ds] = [
-                ModalityDropAugmentation() if augmentation else None
+                ModalityRemover(used_modalities=used_modalities)
             ]
         else:
-            all_transforms[ds] = None
+            all_transforms[ds] = ModalityRemover(used_modalities=used_modalities)
         
     # Defining feature extractor
     feature_extractor = feature_extractor_cls(**feature_extractor_args)
@@ -164,7 +164,7 @@ def main(d_config: dict, t_config: dict) -> None:
                     labels_metadata=metadata_info[corpus_name][ds]['labels_metadata'], 
                     features_root=features_root, features_file_name=metadata_info[corpus_name][ds]['features_file_name'],
                     vad_metadata=metadata_info[corpus_name][ds]['vad_metadata'],
-                    corpus_name=corpus_name, include_neutral=include_neutral, load_in_ram=False if corpus_name in ['MELD', 'RAMAS'] else True,
+                    corpus_name=corpus_name, include_neutral=include_neutral, load_in_ram=True,
                     sr=sr, win_max_length=win_max_length, win_shift=win_shift, win_min_length=win_min_length,
                     feature_extractor=feature_extractor,
                     transform=all_transforms[ds])
@@ -242,7 +242,7 @@ def main(d_config: dict, t_config: dict) -> None:
     define_seed(0)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
-    experiment_name = 'wMultimodal{0}{1}-{2}'.format('a-' if aug else '-',
+    experiment_name = 'wMultimodal{0}{1}-{2}'.format(used_modalities,
                                                      model_cls.__name__.replace('-', '_').replace('/', '_'),
                                                      datetime.datetime.now().strftime("%Y.%m.%d-%H.%M.%S"))
     
@@ -296,9 +296,10 @@ def run_expression_training() -> None:
     """
     d_config = dconf
 
-    m_clses = [AttentionFusionDF, AttentionFusionTF, LabelEncoderFusionDF, LabelEncoderFusionTF, LabelToEmoSenFusionDF, LabelToEmoSenFusionTF]
+    m_clses = [AttentionFusionTF, LabelEncoderFusionTF]
+    all_modalities = ['A', 'V', 'T', 'AV', 'VT', 'TA']
         
-    for augmentation in [False]:
+    for used_modalities in all_modalities:      
         for m_cls in m_clses:
             t_config = deepcopy(tconf)
             t_config['AUGMENTATION'] = False
@@ -311,10 +312,8 @@ def run_expression_training() -> None:
                 'out_emo': len(d_config['RAMAS']['C_NAMES']['emo']),
                 'out_sen': len(d_config['RAMAS']['C_NAMES']['sen'])
             }
-            
-            t_config['AUGMENTATION'] = augmentation
-                
-            main(d_config=d_config, t_config=t_config)
+                            
+            main(d_config=d_config, t_config=t_config, used_modalities=used_modalities)
 
     
 if __name__ == "__main__":
