@@ -65,7 +65,7 @@ def ohe_emotions(label: int) -> np.ndarray[float]:
     return res
 
 
-def ohe_sentiment(value: int) -> np.ndarray[int]:
+def ohe_sentiment(value: int, num_classes: int = 3) -> np.ndarray[int]:
     """Applis OHE to sentiment value
     Negative, -1 -> 0 class -> [1, 0, 0]
     Neutral, 0 -> 1 class -> [0, 1, 0]
@@ -73,11 +73,12 @@ def ohe_sentiment(value: int) -> np.ndarray[int]:
 
     Args:
         value (int): Sentiment value
+        num_classes (int): Number of sentiment classes
 
     Returns:
         np.ndarray[int]: Converted OHE sentiment
     """
-    return np.array([int(i == sen_to_label(value)) for i in range(3)])
+    return np.array([int(i == sen_to_label(value)) for i in range(num_classes)])
 
 
 def sen_to_label(value: int) -> int:

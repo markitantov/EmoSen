@@ -250,6 +250,25 @@ class AttentionFusionDFVT(torch.nn.Module):
         output = self.classifier(a_v_t)
         return output
     
+class AttentionFusionTFFE(torch.nn.Module):
+    def __init__(self, out_emo: int = 6, out_sen: int = 3):
+        super(AttentionFusionTFFE, self).__init__()
+        self.downsampler = MultimodalDownsamplerS32Mean(features_only=False, out_f_size=512)
+        self.in_features = 512
+
+        self.triple_fusion = TripleFusion(in_features=self.in_features, out_features=256)
+        self.classifier = SmallClassificationHead(256, out_emo=out_emo, out_sen=out_sen)
+
+    def forward(self, x, with_features=False):
+        # cross-attention
+        a, v, t = self.downsampler(x[0:3])
+        a_v_t = self.triple_fusion((a, v, t))
+        output = self.classifier(a_v_t)
+        if with_features:
+            return output, a_v_t
+        else:
+            return output, None
+
     
 if __name__ == "__main__":
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')       

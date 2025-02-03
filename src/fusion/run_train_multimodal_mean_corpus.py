@@ -22,17 +22,17 @@ from audio.features.feature_extractors import AudioFeatureExtractor
 
 from common.data.grouping import singlecorpus_grouping
 from common.data.utils import define_context_length
-from common.loss.loss_v2 import MTLoss
+from common.loss.loss_v2 import MTLoss, MLMTLoss, MTEmoLoss
 from common.utils.accuracy import *
 from common.net_trainer.net_trainer_v2 import NetTrainer, LabelType
 from common.utils.common import get_source_code, define_seed, AttrDict
 
-from fusion.data.multimodal_features_dataset import MultimodalFeaturesDataset
-from fusion.augmentation.modality_augmentation import ModalityDropAugmentation
+from fusion.data.multimodal_features_dataset_cmumosei import MultimodalFeaturesDataset
+from fusion.augmentation.modality_augmentation import ModalityRemover
 from fusion.models.multimodal_models_mean import *
 
 
-def main(d_config: dict, t_config: dict) -> None:
+def main(d_config: dict, t_config: dict, used_modalities: str) -> None:
     """Trains with configuration in the following steps:
     - Defines datasets names
     - Defines data augmentations
@@ -81,34 +81,34 @@ def main(d_config: dict, t_config: dict) -> None:
     
     # Defining datasets 
     ds_names = {
+        # 'CMUMOSEI': {
+        #     'train': 'train', 
+        #     'devel': 'dev',
+        #     'test': 'test',
+        # },
         'RAMAS': {
             'train': 'train', 
             'test': 'test',
         },
-        'MELD': {
-            'train': 'train', 
-            'devel': 'dev', 
-            'test': 'test',
-        },
-        'CMUMOSEI': {
-            'train': 'train', 
-            'devel': 'dev',
-            'test': 'test',
-        }
+        # 'MELD': {
+        #     'train': 'train', 
+        #     'devel': 'dev', 
+        #     'test': 'test',
+        # },
     }
-    
+
     c_names_to_display = {}
     for task, class_names in c_names.items():
         c_names_to_display[task] = [cn.capitalize() for cn in class_names]
 
     all_transforms = {}
-    for ds in ds_names['CMUMOSEI']:
+    for ds in ds_names[list(ds_names.keys())[0]]:
         if 'train' in ds:
             all_transforms[ds] = [
-                ModalityDropAugmentation() if augmentation else None
+                ModalityRemover(used_modalities=used_modalities)
             ]
         else:
-            all_transforms[ds] = None
+            all_transforms[ds] = ModalityRemover(used_modalities=used_modalities)
         
     # Defining feature extractor
     feature_extractor = feature_extractor_cls(**feature_extractor_args)
@@ -228,7 +228,7 @@ def main(d_config: dict, t_config: dict) -> None:
     define_seed(0)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
-    experiment_name = 'wMultimodal{0}{1}-{2}'.format('a-' if aug else '-',
+    experiment_name = 'wMultimodalloss{0}{1}-{2}'.format(used_modalities,
                                                      model_cls.__name__.replace('-', '_').replace('/', '_'),
                                                      datetime.datetime.now().strftime("%Y.%m.%d-%H.%M.%S"))
     
@@ -249,9 +249,9 @@ def main(d_config: dict, t_config: dict) -> None:
     model.to(device)
     
     # Defining weighted loss
-    class_sample_count_emo = [sum(x) for x in zip(*[datasets_stats[corpus_name]['train']['counts']['emo_7'] for corpus_name in ds_names])]
-    class_sample_count_sen = [sum(x) for x in zip(*[datasets_stats[corpus_name]['train']['counts']['sen_3'] for corpus_name in ds_names])]
-    loss = MTLoss(emotion_weights=torch.Tensor(class_sample_count_emo / sum(class_sample_count_emo)).to(device), emotion_alpha=1,
+    class_sample_count_emo = [sum(x) for x in zip(*[datasets_stats[corpus_name]['train']['counts']['emo_6'] for corpus_name in ds_names])]
+    class_sample_count_sen = [sum(x) for x in zip(*[datasets_stats[corpus_name]['train']['counts']['sen_2'] for corpus_name in ds_names])]
+    loss = MTEmoLoss(emotion_weights=torch.Tensor(class_sample_count_emo / sum(class_sample_count_emo)).to(device), emotion_alpha=1,
                   sentiment_weights=torch.Tensor(class_sample_count_sen / sum(class_sample_count_sen)).to(device), sentiment_alpha=1)
     
     # Defining optimizer
@@ -263,7 +263,7 @@ def main(d_config: dict, t_config: dict) -> None:
 
     model, max_perf = net_trainer.run(model=model, loss=loss, optimizer=optimizer, scheduler=scheduler,
                                       num_epochs=num_epochs, dataloaders=dataloaders, datasets_stats=datasets_stats, 
-                                      log_epochs=list(range(0, num_epochs + 1)))
+                                      log_epochs=[])
 
     for phase, perf in max_perf.items():
         if 'train' in phase:
@@ -281,22 +281,30 @@ def run_expression_training() -> None:
     """Wrapper for training 
     """
     d_config = dconf
-
+ 
     m_clses = [
-        AttentionFusionDFAV, 
-        AttentionFusionDFAT, 
-        AttentionFusionDFVT,
-        LabelEncoderFusionDFAV, 
-        LabelEncoderFusionDFAT, 
-        LabelEncoderFusionDFVT,
         AttentionFusionTF, 
-        LabelEncoderFusionTF
     ]
+
+    all_modalities = ['AV', 'AT', 'VT', 'A', 'V', 'T', 'AVT']    
+    # all_modalities = ['V', 'T', 'AVT']
+
         
-    for augmentation in [False]:
+    for used_modalities in all_modalities:
         for m_cls in m_clses:
             t_config = deepcopy(tconf)
-            t_config['AUGMENTATION'] = False
+            t_config['LOGS_ROOT'] = '/media/maxim/WesternDigital/RAMAS2024/multimodal_mean_corpus_ramas/'
+            d_config['CMUMOSEI']['C_NAMES']['emo'] = ['happy', 'sad', 'anger', 'surprise', 'disgust', 'fear']
+            d_config['CMUMOSEI']['C_NAMES']['sen'] = ['negative', 'positive']
+            d_config['CMUMOSEI']['INCLUDE_NEUTRAL'] = False
+
+            d_config['MELD']['C_NAMES']['emo'] = ['happy', 'sad', 'anger', 'surprise', 'disgust', 'fear']
+            d_config['MELD']['C_NAMES']['sen'] = ['negative', 'positive']
+            d_config['MELD']['INCLUDE_NEUTRAL'] = False
+
+            d_config['RAMAS']['C_NAMES']['emo'] = ['happy', 'sad', 'anger', 'surprise', 'disgust', 'fear']
+            d_config['RAMAS']['C_NAMES']['sen'] = ['negative', 'positive']
+            d_config['RAMAS']['INCLUDE_NEUTRAL'] = False
                 
             t_config['FEATURE_EXTRACTOR']['cls'] = AudioFeatureExtractor
             t_config['FEATURE_EXTRACTOR']['args'] = {}
@@ -307,9 +315,9 @@ def run_expression_training() -> None:
                 'out_sen': len(d_config['RAMAS']['C_NAMES']['sen'])
             }
             
-            t_config['AUGMENTATION'] = augmentation
+            t_config['NUM_EPOCHS'] = 150
             
-            main(d_config=d_config, t_config=t_config)
+            main(d_config=d_config, t_config=t_config, used_modalities=used_modalities)
 
     
 if __name__ == "__main__":

@@ -3,9 +3,8 @@ __pycache__/
 .ipynb_checkpoints/
 
 # You should make a copy of default_config.py
-singlecorpus_config.py 
-multicorpus_config.py
-multimodal_config.py
+configs
+!configs/default_config.py
 
 # models of spleeter
 pretrained_models/

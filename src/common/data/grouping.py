@@ -92,7 +92,7 @@ def singlecorpus_grouping(targets: dict[list], predicts: dict[list], samples_inf
     for db in ordered_db_names:
         df_emo = df_all_emo[df_all_emo['db_names'] == db].copy()
         emo_idx = [i for i in range(0, len(predicts['emo'][0]))]
-        emo_idx = emo_idx[:-1] if 'CMUMOSEI' in db else emo_idx
+        emo_idx = emo_idx[:-1] if ('CMUMOSEI' in db and len(emo_idx) == 7) else emo_idx
         if 'CMUMOSEI' in db:
             if len(df_emo['predicts'].values[0]) > 6: # Case of multiclass with softlabels
                 df_emo['targets'] = list(np.where(np.asarray(df_emo['targets'].tolist()) > 0, 1, 0)[:, 1:].astype(int))

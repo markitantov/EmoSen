@@ -170,20 +170,6 @@ def main(d_config: dict, t_config: dict) -> None:
                     transform=all_transforms[ds])
 
                 datasets_stats[corpus_name][ds] = datasets[corpus_name][ds].stats
-
-    # Defining dataloaders
-    dataloaders = {
-        'train': torch.utils.data.DataLoader(
-            torch.utils.data.ConcatDataset([datasets['RAMAS']['train'], datasets['MELD']['train'], datasets['CMUMOSEI']['train']]),
-            batch_size=batch_size,
-            shuffle=True
-        ),
-        'devel_MELD':  torch.utils.data.DataLoader(datasets['MELD']['devel'], batch_size=batch_size, shuffle=False),
-        'devel_CMUMOSEI':  torch.utils.data.DataLoader(datasets['CMUMOSEI']['devel'], batch_size=batch_size, shuffle=False),
-        'test_RAMAS':  torch.utils.data.DataLoader(datasets['RAMAS']['test'], batch_size=batch_size, shuffle=False),
-        'test_MELD':  torch.utils.data.DataLoader(datasets['MELD']['test'], batch_size=batch_size, shuffle=False),
-        'test_CMUMOSEI':  torch.utils.data.DataLoader(datasets['CMUMOSEI']['test'], batch_size=batch_size, shuffle=False),
-    }
     
     # Defining dataloaders
     dataloaders = {}
@@ -310,6 +296,7 @@ def run_expression_training() -> None:
     for augmentation in [False]:
         for m_cls in m_clses:
             t_config = deepcopy(tconf)
+            
             t_config['AUGMENTATION'] = False
                 
             t_config['FEATURE_EXTRACTOR']['cls'] = AudioFeatureExtractor
